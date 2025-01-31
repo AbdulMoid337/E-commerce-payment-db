@@ -12,10 +12,12 @@ import {
   UserButton
 } from '@clerk/nextjs';
 import { Button } from "./ui/button";
+import { useCart } from "@/contexts/cartcontext";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const scrollYProgress = useScroll().scrollYProgress;
+  const { cart, calculateTotal, getTotalItems, isInCart } = useCart();
 
   return (
     <>
@@ -59,7 +61,7 @@ export default function Header() {
               <Link href="/cart" className="relative">
                 <ShoppingCart className="w-6 h-6 text-gray-800 hover:text-blue-500" />
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                   2
+                   { cart.length }
                   </span>
               </Link>
             </motion.div>

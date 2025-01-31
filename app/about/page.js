@@ -35,15 +35,7 @@ const About = () => {
           </div>
         </div>
         
-        {/* <div className="relative h-[500px] rounded-lg overflow-hidden shadow-lg">
-          <Image 
-            src="/about-image.jpg" 
-            alt="Our Team" 
-            layout="fill" 
-            objectFit="cover" 
-            className="transition-transform duration-300 hover:scale-105"
-          />
-        </div> */}
+    
       </div>
       
       <div className="mt-16 text-center">

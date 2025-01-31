@@ -4,7 +4,8 @@ import React from "react";
 import Image from "next/image";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import Link from "next/link";
-import products from "../data/products";
+import { useCart } from "@/contexts/cartcontext";
+import products from "@/data/products";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 40 },
@@ -13,6 +14,7 @@ const fadeInUp = {
 
 const FeaturesCollection = () => {
   const { scrollY } = useScroll();
+  const { addToCart } = useCart();
 
   return (
     <section className="py-16 bg-white">
@@ -73,7 +75,8 @@ const FeaturesCollection = () => {
                     </div>
 
                     {/* Add to Cart Button */}
-                    <motion.button
+                    <motion.button 
+                    onClick={() => addToCart(product)}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       className="w-full bg-black hover:bg-gray-800 text-white font-semibold py-4 rounded-2xl text-lg transition-all"
