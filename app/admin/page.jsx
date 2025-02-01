@@ -12,7 +12,14 @@ import {
   Users, 
   TrendingUp, 
   CreditCard, 
-  Activity 
+  Activity,
+  PlusCircle,
+  Settings,
+  Bell,
+  Server,
+  FileText,
+  Cpu,
+  Database
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -149,8 +156,75 @@ function OverviewSection() {
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28'];
 
+  const quickActions = [
+    { 
+      title: 'Add New Product', 
+      icon: PlusCircle, 
+      color: 'text-green-500',
+      action: () => {/* Implement add product logic */}
+    },
+    { 
+      title: 'Manage Settings', 
+      icon: Settings, 
+      color: 'text-blue-500',
+      action: () => {/* Implement settings management */}
+    },
+    { 
+      title: 'View Notifications', 
+      icon: Bell, 
+      color: 'text-yellow-500',
+      action: () => {/* Implement notifications */}
+    }
+  ];
+
+  const recentActivity = [
+    { 
+      id: 1, 
+      type: 'Product', 
+      description: 'New product "Wireless Headphones" added', 
+      time: '2 hours ago',
+      icon: Package
+    },
+    { 
+      id: 2, 
+      type: 'Order', 
+      description: 'Order #1234 processed', 
+      time: '4 hours ago',
+      icon: ShoppingCart
+    },
+    { 
+      id: 3, 
+      type: 'User', 
+      description: 'New user registration', 
+      time: '6 hours ago',
+      icon: Users
+    }
+  ];
+
+  const systemMetrics = [
+    { 
+      title: 'Server Load', 
+      value: '35%', 
+      icon: Server,
+      color: 'text-green-500'
+    },
+    { 
+      title: 'CPU Usage', 
+      value: '45%', 
+      icon: Cpu,
+      color: 'text-blue-500'
+    },
+    { 
+      title: 'Database Size', 
+      value: '2.5 GB', 
+      icon: Database,
+      color: 'text-purple-500'
+    }
+  ];
+
   return (
     <div className="space-y-8">
+      {/* Existing Stats Cards */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
           title="Total Products" 
@@ -182,6 +256,7 @@ function OverviewSection() {
         />
       </div>
 
+      {/* Charts Section */}
       <div className="grid md:grid-cols-2 gap-8">
         <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg">
           <h3 className="text-xl font-semibold mb-4 flex items-center">
@@ -220,6 +295,73 @@ function OverviewSection() {
               <Tooltip />
             </PieChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* New Sections */}
+      <div className="grid md:grid-cols-3 gap-8">
+        {/* Quick Actions */}
+        <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg">
+          <h3 className="text-xl font-semibold mb-4 flex items-center">
+            <PlusCircle className="mr-2 text-green-500" /> Quick Actions
+          </h3>
+          <div className="space-y-4">
+            {quickActions.map((action, index) => (
+              <Button 
+                key={index} 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={action.action}
+              >
+                <action.icon className={`mr-2 h-5 w-5 ${action.color}`} />
+                {action.title}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg">
+          <h3 className="text-xl font-semibold mb-4 flex items-center">
+            <FileText className="mr-2 text-blue-500" /> Recent Activity
+          </h3>
+          <div className="space-y-4">
+            {recentActivity.map((activity) => (
+              <div 
+                key={activity.id} 
+                className="flex items-center justify-between border-b pb-2 last:border-b-0"
+              >
+                <div className="flex items-center space-x-3">
+                  <activity.icon className="h-5 w-5 text-gray-500" />
+                  <div>
+                    <p className="text-sm font-medium">{activity.description}</p>
+                    <p className="text-xs text-gray-500">{activity.time}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* System Metrics */}
+        <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg">
+          <h3 className="text-xl font-semibold mb-4 flex items-center">
+            <Cpu className="mr-2 text-purple-500" /> System Metrics
+          </h3>
+          <div className="space-y-4">
+            {systemMetrics.map((metric, index) => (
+              <div 
+                key={index} 
+                className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-lg"
+              >
+                <div className="flex items-center space-x-3">
+                  <metric.icon className={`h-6 w-6 ${metric.color}`} />
+                  <span className="text-sm font-medium">{metric.title}</span>
+                </div>
+                <span className="text-lg font-bold">{metric.value}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
