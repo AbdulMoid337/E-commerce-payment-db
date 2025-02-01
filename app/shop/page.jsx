@@ -1,0 +1,159 @@
+'use client';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
+import products from '@/data/products';
+
+export default function ShopPage() {
+  const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const categories = ['All', 'Electronics', 'Fashion', 'Sports', 'Home'];
+
+  const filteredProducts = selectedCategory.toLowerCase() === 'all' 
+    ? products 
+    : products.filter(product => 
+        product.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
+
+  const pageVariants = {
+    initial: { opacity: 0, y: 50 },
+    in: { opacity: 1, y: 0 },
+    out: { opacity: 0, y: -50 }
+  };
+
+  const pageTransition = {
+    type: "tween",
+    ease: "anticipate",
+    duration: 0.5
+  };
+
+  const productVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
+    visible: { 
+      opacity: 1, 
+      scale: 1,
+      transition: {
+        duration: 0.3
+      }
+    },
+    hover: { 
+      scale: 1.05,
+      transition: {
+        duration: 0.2
+      }
+    }
+  };
+
+  return (
+    <motion.div 
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={pageTransition}
+      className="min-h-screen bg-gray-100 pt-36 pb-12 px-4 sm:px-6 lg:px-8"
+    >
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-extrabold text-center mb-12 text-gray-900">
+          Our Products
+        </h1>
+
+        {/* Category Filter */}
+        <div className="bg-black rounded-full p-2 flex justify-center items-center space-x-2 mb-12 relative overflow-hidden w-full sm:w-[600px] mx-auto">
+          {categories.map((category) => (
+            <motion.div 
+              key={category}
+              className="relative z-10 flex-1 text-center"
+              onClick={() => setSelectedCategory(category)}
+            >
+              <motion.button
+                layout
+                whileTap={{ scale: 0.95 }}
+                className={`
+                  px-4 sm:px-6 py-2 rounded-full text-xs sm:text-sm font-medium transition-colors z-20 relative w-full
+                  ${selectedCategory === category 
+                    ? 'text-white' 
+                    : 'text-gray-300 hover:text-white'}
+                `}
+              >
+                {category}
+                <AnimatePresence>
+                  {selectedCategory === category && (
+                    <motion.div
+                      layoutId="category-background"
+                      className="absolute inset-0 bg-blue-500 rounded-full -z-10"
+                      initial={{ 
+                        opacity: 0,
+                        scale: 0.8
+                      }}
+                      animate={{ 
+                        opacity: 1,
+                        scale: 1
+                      }}
+                      exit={{ 
+                        opacity: 0,
+                        scale: 0.8
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 250,
+                        damping: 20
+                      }}
+                    />
+                  )}
+                </AnimatePresence>
+              </motion.button>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Product Grid */}
+        <AnimatePresence>
+          <motion.div 
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"
+          >
+            {filteredProducts.map(product => (
+              <motion.div
+                key={product.id}
+                variants={productVariants}
+                initial="hidden"
+                animate="visible"
+                whileHover="hover"
+                className="bg-white rounded-lg shadow-lg overflow-hidden"
+              >
+                <div className="relative w-full h-64">
+                  <Image 
+                    src={product.imageUrl} 
+                    alt={product.name} 
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+                <div className="p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                    {product.name}
+                  </h2>
+                  <p className="text-gray-600 mb-4 text-sm">
+                    {product.description}
+                  </p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-2xl font-bold text-blue-600">
+                      ${product.price.toFixed(2)}
+                    </span>
+                    <motion.button
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                      className="bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-blue-600"
+                    >
+                      Add to Cart
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+}

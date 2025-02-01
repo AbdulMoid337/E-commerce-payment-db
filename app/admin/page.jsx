@@ -1,9 +1,12 @@
 "use client"
 
-import { useUser, SignedIn, SignedOut, SignIn } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { checkRole } from '@/utils/roles'
+import { Input } from "@/components/ui/input";
+
 import Loader from '@/components/Loader';
 import { 
   LayoutDashboard, 
@@ -35,37 +38,39 @@ import {
 import products from '@/data/products';
 
 export default function AdminDashboard() {
-  const { user, isLoaded } = useUser();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-
   useEffect(() => {
-    if (isLoaded) {
-      if (!user || user.emailAddresses[0]?.emailAddress !== ADMIN_EMAIL) {
-        router.push("/404");
+    const verifyAdminRole = async () => {
+      try {
+        const adminStatus = await checkRole('admin');
+        setIsAdmin(adminStatus);
+        
+        if (!adminStatus) {
+          router.push('/404');
+        }
+      } catch (error) {
+        console.error('Error checking admin role:', error);
+        router.push('/');
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, [user, isLoaded, router]);
+    };
 
-  if (!isLoaded) {
+    verifyAdminRole();
+  }, [router]);
+
+  if (isLoading) {
     return <Loader />;
   }
 
-  return (
-    <>
-      <SignedIn>
-        {user?.emailAddresses[0]?.emailAddress === ADMIN_EMAIL ? (
-          <AdminDashboardClient />
-        ) : (
-          <div className="text-center text-red-500 font-bold p-8">Access Denied</div>
-        )}
-      </SignedIn>
-      <SignedOut>
-        <SignIn routing="hash" />
-      </SignedOut>
-    </>
-  );
+  if (!isAdmin) {
+    return null;
+  }
+
+  return <AdminDashboardClient />;
 }
 
 function AdminDashboardClient() {
@@ -136,13 +141,71 @@ function AdminDashboardClient() {
 }
 
 function OverviewSection() {
-  const salesData = [
-    { month: 'Jan', sales: 4000 },
-    { month: 'Feb', sales: 3000 },
-    { month: 'Mar', sales: 5000 },
-    { month: 'Apr', sales: 4500 },
-    { month: 'May', sales: 6000 },
-  ];
+  const { user } = useUser();
+  const [salesData, setSalesData] = useState([
+    { month: 'Jan', sales: 0 },
+    { month: 'Feb', sales: 0 },
+    { month: 'Mar', sales: 0 },
+    { month: 'Apr', sales: 0 },
+    { month: 'May', sales: 0 },
+  ]);
+
+  const [totalSales, setTotalSales] = useState(0);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [activeUsers, setActiveUsers] = useState(0);
+  const [totalUsers, setTotalUsers] = useState(0);
+
+  useEffect(() => {
+    // Simulate fetching real data
+    const fetchDashboardData = async () => {
+      try {
+        // Simulate dynamic sales data
+        const monthlySales = [
+          { month: 'Jan', sales: 4200 },
+          { month: 'Feb', sales: 5600 },
+          { month: 'Mar', sales: 4800 },
+          { month: 'Apr', sales: 6300 },
+          { month: 'May', sales: 5900 },
+        ];
+        setSalesData(monthlySales);
+
+        // Calculate total sales
+        const total = monthlySales.reduce((sum, month) => sum + month.sales, 0);
+        setTotalSales(total);
+
+        // Total products from products array
+        setTotalProducts(products.length);
+
+        // Get total active users from Clerk
+        if (user) {
+          const response = await fetch(`/api/users/count`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+
+          if (response.ok) {
+            const { count } = await response.json();
+            setActiveUsers(2); // Hardcoded active users
+            setTotalUsers(count);
+          } else {
+            // Fallback to hardcoded values
+            setActiveUsers(2);
+            setTotalUsers(2);
+          }
+        }
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        // Fallback to hardcoded values
+        setActiveUsers(2);
+        setTotalUsers(2);
+      }
+    };
+
+    fetchDashboardData();
+  }, [user]);
 
   const productDistribution = products.reduce((acc, product) => {
     const existingCategory = acc.find(cat => cat.name === product.category);
@@ -191,77 +254,38 @@ function OverviewSection() {
       description: 'Order #1234 processed', 
       time: '4 hours ago',
       icon: ShoppingCart
-    },
-    { 
-      id: 3, 
-      type: 'User', 
-      description: 'New user registration', 
-      time: '6 hours ago',
-      icon: Users
-    }
-  ];
-
-  const systemMetrics = [
-    { 
-      title: 'Server Load', 
-      value: '35%', 
-      icon: Server,
-      color: 'text-green-500'
-    },
-    { 
-      title: 'CPU Usage', 
-      value: '45%', 
-      icon: Cpu,
-      color: 'text-blue-500'
-    },
-    { 
-      title: 'Database Size', 
-      value: '2.5 GB', 
-      icon: Database,
-      color: 'text-purple-500'
     }
   ];
 
   return (
-    <div className="space-y-8">
-      {/* Existing Stats Cards */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="space-y-6">
+      <div className="grid md:grid-cols-3 gap-6">
         <StatCard 
-          title="Total Products" 
-          value={products.length} 
-          icon={Package} 
-          trend="up" 
-          percentage={12} 
-        />
-        <StatCard 
-          title="Total Orders" 
-          value="120" 
-          icon={ShoppingCart} 
-          trend="up" 
-          percentage={8} 
-        />
-        <StatCard 
-          title="Total Revenue" 
-          value={`$${products.reduce((acc, p) => acc + p.price, 0).toFixed(2)}`} 
-          icon={CreditCard} 
-          trend="up" 
-          percentage={15} 
+          title="Total Sales" 
+          value={`$${totalSales.toLocaleString()}`} 
+          icon={TrendingUp}
+          trend="up"
+          percentage={12.5}
         />
         <StatCard 
           title="Active Users" 
-          value="250" 
-          icon={Users} 
-          trend="down" 
-          percentage={5} 
+          value={`${activeUsers} / ${totalUsers}`} 
+          icon={Users}
+          trend="up"
+          percentage={8.2}
+        />
+        <StatCard 
+          title="Total Products" 
+          value={totalProducts.toLocaleString()} 
+          icon={Package}
+          trend="neutral"
+          percentage={0}
         />
       </div>
 
-      {/* Charts Section */}
-      <div className="grid md:grid-cols-2 gap-8">
-        <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg">
-          <h3 className="text-xl font-semibold mb-4 flex items-center">
-            <TrendingUp className="mr-2 text-blue-500" /> Monthly Sales
-          </h3>
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">Monthly Sales</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={salesData}>
               <XAxis dataKey="month" />
@@ -272,10 +296,8 @@ function OverviewSection() {
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg">
-          <h3 className="text-xl font-semibold mb-4 flex items-center">
-            <Activity className="mr-2 text-green-500" /> Product Distribution
-          </h3>
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">Product Distribution</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -286,7 +308,6 @@ function OverviewSection() {
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
               >
                 {productDistribution.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -298,14 +319,10 @@ function OverviewSection() {
         </div>
       </div>
 
-      {/* New Sections */}
-      <div className="grid md:grid-cols-3 gap-8">
-        {/* Quick Actions */}
-        <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg">
-          <h3 className="text-xl font-semibold mb-4 flex items-center">
-            <PlusCircle className="mr-2 text-green-500" /> Quick Actions
-          </h3>
-          <div className="space-y-4">
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+          <div className="space-y-2">
             {quickActions.map((action, index) => (
               <Button 
                 key={index} 
@@ -320,16 +337,13 @@ function OverviewSection() {
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg">
-          <h3 className="text-xl font-semibold mb-4 flex items-center">
-            <FileText className="mr-2 text-blue-500" /> Recent Activity
-          </h3>
-          <div className="space-y-4">
+        <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
+          <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
+          <div className="space-y-3">
             {recentActivity.map((activity) => (
               <div 
                 key={activity.id} 
-                className="flex items-center justify-between border-b pb-2 last:border-b-0"
+                className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md"
               >
                 <div className="flex items-center space-x-3">
                   <activity.icon className="h-5 w-5 text-gray-500" />
@@ -342,27 +356,6 @@ function OverviewSection() {
             ))}
           </div>
         </div>
-
-        {/* System Metrics */}
-        <div className="bg-gray-100 dark:bg-gray-700 p-6 rounded-lg">
-          <h3 className="text-xl font-semibold mb-4 flex items-center">
-            <Cpu className="mr-2 text-purple-500" /> System Metrics
-          </h3>
-          <div className="space-y-4">
-            {systemMetrics.map((metric, index) => (
-              <div 
-                key={index} 
-                className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-lg"
-              >
-                <div className="flex items-center space-x-3">
-                  <metric.icon className={`h-6 w-6 ${metric.color}`} />
-                  <span className="text-sm font-medium">{metric.title}</span>
-                </div>
-                <span className="text-lg font-bold">{metric.value}</span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -370,18 +363,54 @@ function OverviewSection() {
 
 function ProductsSection() {
   const router = useRouter();
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleEditProduct = (productId) => {
     router.push(`/admin/products/${productId}`);
   };
 
+  const handleDeleteProduct = (productId) => {
+    // In a real application, this would be an API call
+    const index = products.findIndex(p => p.id === productId);
+    if (index !== -1) {
+      products.splice(index, 1);
+      // Optionally, trigger a re-render or state update
+    }
+  };
+
+  const handleAddProduct = () => {
+    router.push('/admin/products/new');
+  };
+
   return (
     <div>
-      <h2 className="text-2xl font-semibold mb-4 flex items-center">
-        <Package className="mr-2 text-blue-500" /> Manage Products
-      </h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-bold">Products Management</h2>
+        <Button 
+          onClick={handleAddProduct} 
+          className="flex items-center"
+        >
+          <PlusCircle className="mr-2 h-4 w-4" /> Add New Product
+        </Button>
+      </div>
+
+      <div className="mb-4">
+        <Input 
+          type="text" 
+          placeholder="Search products..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full"
+        />
+      </div>
+
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {products.map(product => (
+        {filteredProducts.map(product => (
           <div 
             key={product.id} 
             className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-4 rounded-lg shadow-sm relative group"
@@ -397,7 +426,7 @@ function ProductsSection() {
               <span className="text-xl font-bold text-blue-600">${product.price}</span>
               <span className="text-yellow-500">★ {product.rating}</span>
             </div>
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -406,10 +435,24 @@ function ProductsSection() {
               >
                 Edit
               </Button>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={() => handleDeleteProduct(product.id)}
+                className="bg-red-500 hover:bg-red-600 text-white"
+              >
+                Delete
+              </Button>
             </div>
           </div>
         ))}
       </div>
+
+      {filteredProducts.length === 0 && (
+        <div className="text-center text-gray-500 py-8">
+          No products found
+        </div>
+      )}
     </div>
   );
 }
@@ -417,10 +460,8 @@ function ProductsSection() {
 function OrdersSection() {
   return (
     <div>
-      <h2 className="text-2xl font-semibold mb-4 flex items-center">
-        <ShoppingCart className="mr-2 text-green-500" /> Order Management
-      </h2>
-      <p className="text-gray-600 dark:text-gray-300">Order management functionality coming soon...</p>
+      <h2 className="text-xl font-bold mb-4">Orders Management</h2>
+      {/* Add orders management UI */}
     </div>
   );
 }
@@ -428,35 +469,29 @@ function OrdersSection() {
 function UsersSection() {
   return (
     <div>
-      <h2 className="text-2xl font-semibold mb-4 flex items-center">
-        <Users className="mr-2 text-purple-500" /> User Management
-      </h2>
-      <p className="text-gray-600 dark:text-gray-300">User management functionality coming soon...</p>
+      <h2 className="text-xl font-bold mb-4">Users Management</h2>
+      {/* Add users management UI */}
     </div>
   );
 }
 
 function StatCard({ title, value, icon: Icon, trend, percentage }) {
   return (
-    <div className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-4 rounded-lg shadow-sm hover:shadow-md transition-all">
+    <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
       <div className="flex justify-between items-center">
         <div>
-          <h3 className="text-sm text-gray-500 dark:text-gray-300 mb-1">{title}</h3>
-          <p className="text-2xl font-bold text-gray-800 dark:text-white">{value}</p>
+          <h4 className="text-sm text-gray-500 mb-2">{title}</h4>
+          <p className="text-2xl font-bold">{value}</p>
+          <div className="flex items-center text-sm mt-1">
+            <span className={`mr-1 ${trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
+              {trend === 'up' ? '▲' : '▼'}
+            </span>
+            <span className={trend === 'up' ? 'text-green-500' : 'text-red-500'}>
+              {percentage}%
+            </span>
+          </div>
         </div>
-        <div className={`p-2 rounded-full ${
-          trend === 'up' 
-            ? 'bg-green-100 text-green-600' 
-            : 'bg-red-100 text-red-600'
-        }`}>
-          <Icon className="h-6 w-6" />
-        </div>
-      </div>
-      <div className="mt-2 text-sm flex items-center">
-        <span className={trend === 'up' ? 'text-green-600' : 'text-red-600'}>
-          {trend === 'up' ? '↑' : '↓'} {percentage}%
-        </span>
-        <span className="ml-2 text-gray-500 dark:text-gray-400">since last month</span>
+        <Icon className="h-8 w-8 text-blue-500 opacity-75" />
       </div>
     </div>
   );

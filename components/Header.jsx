@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { motion , useScroll } from "framer-motion";
+import { motion, AnimatePresence, useScroll } from "framer-motion";
 import { ShoppingCart, Menu, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from 'next/navigation';
 import {
   ClerkProvider,
   SignInButton,
@@ -18,6 +19,16 @@ export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const scrollYProgress = useScroll().scrollYProgress;
   const { cart, calculateTotal, getTotalItems, isInCart } = useCart();
+  const pathname = usePathname();
+
+  const navItems = [
+    { name: "Home", path: "/" },
+    { name: "Shop", path: "/shop" },
+    { name: "Cart", path: "/cart" },
+    { name: "Orders", path: "/orders" },
+    { name: "About", path: "/about" },
+    { name: "Contact", path: "/contact" }
+  ];
 
   return (
     <>
@@ -25,7 +36,7 @@ export default function Header() {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="fixed top-0 left-0 w-full bg-white/80 backdrop-blur-md shadow-md z-50"
+        className="fixed top-0  left-0 w-full bg-white/80 backdrop-blur-md shadow-md z-50"
       >
         <div className="container mx-auto px-6 lg:px-12 py-4 flex justify-between items-center">
         
@@ -40,15 +51,51 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-6 text-gray-800 font-semibold">
-            {["Home", "Shop", "About", "Contact"].map((item, index) => (
+          <nav className="hidden  md:flex space-x-2 text-gray-800 font-semibold bg-black rounded-full p-2 relative overflow-hidden">
+            {navItems.map((item) => (
               <motion.div 
-                key={index}
-                whileHover={{ scale: 1.1, color: "#3b82f6" }}
-                transition={{ type: "spring", stiffness: 300 }}
+                key={item.path}
+                className="relative  z-10"
+                onClick={() => {}}
               >
-                <Link href={item.toLowerCase() === "home" ? "/" : `/${item.toLowerCase()}`} className="hover:text-blue-500">
-                  {item}
+                <Link href={item.path}>
+                  <motion.button
+                    layout
+                    whileTap={{ scale: 0.95 }}
+                    className={`
+                      px-4 py-2 rounded-full text-xs font-medium transition-colors z-20 relative
+                      ${pathname === item.path 
+                        ? 'text-white' 
+                        : 'text-gray-300 hover:text-white'}
+                    `}
+                  >
+                    {item.name}
+                    <AnimatePresence>
+                      {pathname === item.path && (
+                        <motion.div
+                          layoutId="nav-background"
+                          className="absolute inset-0 bg-blue-500 rounded-full -z-10"
+                          initial={{ 
+                            opacity: 0,
+                            scale: 0.8
+                          }}
+                          animate={{ 
+                            opacity: 1,
+                            scale: 1
+                          }}
+                          exit={{ 
+                            opacity: 0,
+                            scale: 0.8
+                          }}
+                          transition={{
+                            type: "spring",
+                            stiffness: 250,
+                            damping: 20
+                          }}
+                        />
+                      )}
+                    </AnimatePresence>
+                  </motion.button>
                 </Link>
               </motion.div>
             ))}
@@ -62,24 +109,26 @@ export default function Header() {
                 <ShoppingCart className="w-6 h-6 text-gray-800 hover:text-blue-500" />
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
                    { cart.length }
-                  </span>
+                </span>
               </Link>
             </motion.div>
 
             {/* Clerk Authentication Buttons */}
             <SignedIn>
-              {/* Display the user button for signed-in users */}
               <UserButton />
             </SignedIn>
             <SignedOut>
-              {/* Display SignIn Button for signed-out users */}
               <SignInButton>
                 <Button>Sign In</Button>
               </SignInButton>
             </SignedOut>
 
             {/* Mobile Menu Button */}
-            <button onClick={() => setIsOpen(!isOpen)} className="md:hidden">
+            <button 
+              onClick={() => setIsOpen(!isOpen)} 
+              onBlur={() => setIsOpen(false)}
+              className="md:hidden"
+            >
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
@@ -93,20 +142,20 @@ export default function Header() {
             transition={{ duration: 0.3 }}
             className="md:hidden bg-white shadow-md absolute top-full left-0 w-full flex flex-col items-center py-4 space-y-4"
           >
-            {["Home", "Shop", "About", "Contact"].map((item, index) => (
+            {navItems.map((item) => (
               <Link 
-                key={index} 
-                href={item.toLowerCase() === "home" ? "/" : `/${item.toLowerCase()}`} 
+                key={item.path} 
+                href={item.path} 
                 className="text-gray-800 text-lg font-semibold hover:text-blue-500"
                 onClick={() => setIsOpen(false)}
               >
-                {item}
+                {item.name}
               </Link>
             ))}
           </motion.div>
         )}
       </motion.header>
-      <motion.div style={{ scaleX: scrollYProgress }} className="fixed origin-left bg-black h-3 w-full top-16 z-50 "></motion.div>
+      <motion.div style={{ scaleX: scrollYProgress }} className=" mt-0.5 fixed  origin-left bg-black h-2 w-full top-16 z-50 "></motion.div>
     </>
   );
 }

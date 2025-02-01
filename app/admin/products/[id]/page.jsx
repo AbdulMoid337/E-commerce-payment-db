@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useUser, SignedIn, SignedOut, SignIn } from "@clerk/nextjs";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,15 +11,12 @@ import products from '@/data/products';
 import Loader from '@/components/Loader';
 
 export default function EditProductPage() {
-  const { user, isLoaded } = useUser();
   const params = useParams();
   const router = useRouter();
-  const productId = parseInt(params.id);
-
-  const ADMIN_EMAIL = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+  const productId = params.id === 'new' ? null : parseInt(params.id);
 
   const [product, setProduct] = useState({
-    id: '',
+    id: productId || Date.now(),
     name: '',
     description: '',
     category: '',
@@ -29,22 +25,19 @@ export default function EditProductPage() {
     imageUrl: ''
   });
 
-  useEffect(() => {
-    if (isLoaded) {
-      if (!user || user.emailAddresses[0]?.emailAddress !== ADMIN_EMAIL) {
-        router.push("/404");
-      }
-    }
-  }, [user, isLoaded, router]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Find the product by ID
-    const foundProduct = products.find(p => p.id === productId);
-    if (foundProduct) {
-      setProduct(foundProduct);
-    } else {
-      router.push('/admin/page');
+    // Find the product by ID for editing
+    if (productId) {
+      const foundProduct = products.find(p => p.id === productId);
+      if (foundProduct) {
+        setProduct(foundProduct);
+      } else {
+        router.push('/products');
+      }
     }
+    setIsLoading(false);
   }, [productId, router]);
 
   const handleInputChange = (e) => {
@@ -58,152 +51,146 @@ export default function EditProductPage() {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Find the index of the product to update
-    const productIndex = products.findIndex(p => p.id === productId);
-    
-    if (productIndex !== -1) {
-      // Update the product in the array
-      products[productIndex] = product;
+    if (productId) {
+      // Editing existing product
+      const productIndex = products.findIndex(p => p.id === productId);
       
-      // Here you would typically send this to a backend API
-      // For now, we'll just log and redirect
-      console.log('Updated Product:', product);
-      
-      // Redirect back to products list
-      router.push('/admin/page');
+      if (productIndex !== -1) {
+        products[productIndex] = product;
+      }
+    } else {
+      // Adding new product
+      products.push(product);
     }
+    
+    // Here you would typically send this to a backend API
+    console.log(productId ? 'Updated Product:' : 'Added Product:', product);
+    
+    // Redirect back to products list
+    router.push('/products');
   };
 
   const handleCancel = () => {
-    router.push('/admin/page');
+    router.push('/products');
   };
 
-  if (!isLoaded) {
+  if (isLoading) {
     return <Loader />;
   }
 
   return (
-    <>
-      <SignedIn>
-        {user?.emailAddresses[0]?.emailAddress === ADMIN_EMAIL ? (
-          <div className="container mx-auto pt-48 pb-36 px-4 py-8">
-            <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
-              <h1 className="text-2xl font-bold mb-6 flex items-center">
-                <Package className="mr-3 text-blue-500" /> Edit Product
-              </h1>
-              
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Product Name</Label>
-                  <Input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={product.name}
-                    onChange={handleInputChange}
-                    required
-                    className="mt-1"
-                  />
-                </div>
+    <div className="container  mx-auto pt-40  pb-24 px-4 py-8">
+      <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+        <h1 className="text-2xl font-bold mb-6 flex items-center">
+          <Package className="mr-3 text-blue-500" /> 
+          {productId ? 'Edit Product' : 'Add New Product'}
+        </h1>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="name">Product Name</Label>
+            <Input
+              type="text"
+              id="name"
+              name="name"
+              value={product.name}
+              onChange={handleInputChange}
+              required
+              className="mt-1"
+            />
+          </div>
 
-                <div>
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    value={product.description}
-                    onChange={handleInputChange}
-                    required
-                    className="mt-1"
-                  />
-                </div>
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              name="description"
+              value={product.description}
+              onChange={handleInputChange}
+              required
+              className="mt-1"
+            />
+          </div>
 
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="category">Category</Label>
-                    <Input
-                      type="text"
-                      id="category"
-                      name="category"
-                      value={product.category}
-                      onChange={handleInputChange}
-                      required
-                      className="mt-1"
-                    />
-                  </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="category">Category</Label>
+              <Input
+                type="text"
+                id="category"
+                name="category"
+                value={product.category}
+                onChange={handleInputChange}
+                required
+                className="mt-1"
+              />
+            </div>
 
-                  <div>
-                    <Label htmlFor="price">Price</Label>
-                    <Input
-                      type="number"
-                      id="price"
-                      name="price"
-                      value={product.price}
-                      onChange={handleInputChange}
-                      step="0.01"
-                      required
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="rating">Rating</Label>
-                    <Input
-                      type="number"
-                      id="rating"
-                      name="rating"
-                      value={product.rating}
-                      onChange={handleInputChange}
-                      step="0.1"
-                      min="0"
-                      max="5"
-                      required
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="imageUrl">Image URL</Label>
-                    <Input
-                      type="url"
-                      id="imageUrl"
-                      name="imageUrl"
-                      value={product.imageUrl}
-                      onChange={handleInputChange}
-                      required
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end space-x-4 mt-6">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={handleCancel}
-                    className="flex items-center"
-                  >
-                    <X className="mr-2 h-4 w-4" /> Cancel
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    className="flex items-center"
-                  >
-                    <Save className="mr-2 h-4 w-4" /> Save Changes
-                  </Button>
-                </div>
-              </form>
+            <div>
+              <Label htmlFor="price">Price</Label>
+              <Input
+                type="number"
+                id="price"
+                name="price"
+                value={product.price}
+                onChange={handleInputChange}
+                step="0.01"
+                required
+                className="mt-1"
+              />
             </div>
           </div>
-        ) : (
-          <div className="text-center text-red-500 font-bold p-8">Access Denied</div>
-        )}
-      </SignedIn>
-      <SignedOut>
-        <SignIn routing="hash" />
-      </SignedOut>
-    </>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="rating">Rating</Label>
+              <Input
+                type="number"
+                id="rating"
+                name="rating"
+                value={product.rating}
+                onChange={handleInputChange}
+                step="0.1"
+                min="0"
+                max="5"
+                required
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="imageUrl">Image URL</Label>
+              <Input
+                type="url"
+                id="imageUrl"
+                name="imageUrl"
+                value={product.imageUrl}
+                onChange={handleInputChange}
+                required
+                className="mt-1"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-4 mt-6">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleCancel}
+              className="flex items-center"
+            >
+              <X className="mr-2 h-4 w-4" /> Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              className="flex items-center"
+            >
+              <Save className="mr-2 h-4 w-4" /> 
+              {productId ? 'Save Changes' : 'Add Product'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
