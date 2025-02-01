@@ -3,9 +3,14 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import products from '@/data/products';
+import { useCart } from '@/contexts/cartcontext';
+import { toast } from 'sonner';
+import { CheckCircle2, ShoppingCart, Check, X } from 'lucide-react';
 
 export default function ShopPage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const { addToCart, cart } = useCart();
+  const [activeProducts, setActiveProducts] = useState(new Set());
 
   const categories = ['All', 'Electronics', 'Fashion', 'Sports', 'Home'];
 
@@ -42,6 +47,37 @@ export default function ShopPage() {
         duration: 0.2
       }
     }
+  };
+
+  const handleAddToCart = (product, event) => {
+    // Prevent link navigation
+    event.preventDefault();
+    
+    // Add to cart
+    addToCart(product);
+
+    // Add product to active products
+    setActiveProducts(prev => new Set(prev).add(product.id));
+
+    // Show toast notification
+    toast.custom((t) => (
+      <div className="bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-4">
+        <CheckCircle2 className="w-6 h-6" />
+        <div>
+          <p className="font-semibold">{product.name} added to cart</p>
+          <p className="text-sm opacity-80">Your item is ready for checkout</p>
+        </div>
+        <button 
+          onClick={() => toast.dismiss(t.id)}
+          className="ml-auto hover:bg-green-600 p-2 rounded-full"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    ), { 
+      duration: 3000,
+      position: 'top-right'
+    });
   };
 
   return (
@@ -140,12 +176,30 @@ export default function ShopPage() {
                     <span className="text-2xl font-bold text-blue-600">
                       ${product.price.toFixed(2)}
                     </span>
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                      className="bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-blue-600"
+                    <motion.button 
+                      onClick={(e) => handleAddToCart(product, e)}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className={`
+                        w-auto px-4 h-10 flex items-center justify-center 
+                        font-semibold rounded-xl text-sm  transition-all duration-300
+                        ${activeProducts.has(product.id)
+                          ? 'bg-green-500 text-white' 
+                          : 'bg-black text-white hover:bg-green-600'}
+                      `}
+                      disabled={activeProducts.has(product.id)}
                     >
-                      Add to Cart
+                      {activeProducts.has(product.id) ? (
+                        <div className="flex items-center space-x-1">
+                          <Check className="w-4 h-4" />
+                          <span>Added</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center cursor-pointer space-x-1">
+                          <ShoppingCart className="w-4  h-4" />
+                          <span>Add to Cart</span>
+                        </div>
+                      )}
                     </motion.button>
                   </div>
                 </div>

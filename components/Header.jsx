@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence, useScroll } from "framer-motion";
 import { ShoppingCart, Menu, X } from "lucide-react";
 import Link from "next/link";
@@ -17,9 +17,11 @@ import { useCart } from "@/contexts/cartcontext";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [flyingItem, setFlyingItem] = useState(null);
   const scrollYProgress = useScroll().scrollYProgress;
-  const { cart, calculateTotal, getTotalItems, isInCart } = useCart();
+  const { cart, calculateTotal, getTotalItems, isInCart, addItemToCart } = useCart();
   const pathname = usePathname();
+  const cartIconRef = useRef(null);
 
   const navItems = [
     { name: "Home", path: "/" },
@@ -30,13 +32,20 @@ export default function Header() {
     { name: "Contact", path: "/contact" }
   ];
 
+  const triggerFlyingCartAnimation = (product) => {
+    setFlyingItem(product);
+    setTimeout(() => {
+      setFlyingItem(null);
+    }, 1000);
+  };
+
   return (
     <>
       <motion.header
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
-        className="fixed top-0  left-0 w-full bg-white/80 backdrop-blur-md shadow-md z-50"
+        className="fixed top-0 left-0 w-full bg-white/80 backdrop-blur-md shadow-md z-50"
       >
         <div className="container mx-auto px-6 lg:px-12 py-4 flex justify-between items-center">
         
@@ -51,11 +60,11 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden  md:flex space-x-2 text-gray-800 font-semibold bg-black rounded-full p-2 relative overflow-hidden">
+          <nav className="hidden md:flex space-x-2 text-gray-800 font-semibold bg-black rounded-full p-2 relative overflow-hidden">
             {navItems.map((item) => (
               <motion.div 
                 key={item.path}
-                className="relative  z-10"
+                className="relative z-10"
                 onClick={() => {}}
               >
                 <Link href={item.path}>
@@ -77,7 +86,7 @@ export default function Header() {
                           className="absolute inset-0 bg-blue-500 rounded-full -z-10"
                           initial={{ 
                             opacity: 0,
-                            scale: 0.8
+                            scale: 0.5
                           }}
                           animate={{ 
                             opacity: 1,
@@ -85,12 +94,12 @@ export default function Header() {
                           }}
                           exit={{ 
                             opacity: 0,
-                            scale: 0.8
+                            scale: 0.5
                           }}
                           transition={{
                             type: "spring",
-                            stiffness: 250,
-                            damping: 20
+                            stiffness: 200,
+                            damping: 15
                           }}
                         />
                       )}
@@ -104,14 +113,50 @@ export default function Header() {
           {/* Icons */}
           <div className="flex items-center space-x-4">
             {/* Cart Icon */}
-            <motion.div whileHover={{ scale: 1.2 }}>
-              <Link href="/cart" className="relative">
+            <motion.div 
+              ref={cartIconRef}
+              whileHover={{ scale: 1.2 }}
+              className="relative"
+            >
+              <Link href="/cart">
                 <ShoppingCart className="w-6 h-6 text-gray-800 hover:text-blue-500" />
                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
                    { cart.length }
                 </span>
               </Link>
             </motion.div>
+
+            {/* Flying Cart Animation */}
+            <AnimatePresence>
+              {flyingItem && (
+                <motion.div
+                  initial={{ 
+                    position: 'fixed', 
+                    top: '50%', 
+                    left: '50%', 
+                    scale: 1,
+                    opacity: 1 
+                  }}
+                  animate={{ 
+                    top: cartIconRef.current ? 
+                      cartIconRef.current.getBoundingClientRect().top : 0,
+                    left: cartIconRef.current ? 
+                      cartIconRef.current.getBoundingClientRect().left : 0,
+                    scale: 0.2,
+                    opacity: 0
+                  }}
+                  transition={{ 
+                    duration: 0.8, 
+                    type: "spring", 
+                    stiffness: 200 
+                  }}
+                  exit={{ opacity: 0 }}
+                  className="fixed z-50 bg-blue-500 text-white p-2 rounded-full"
+                >
+                  <ShoppingCart className="w-6 h-6" />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Clerk Authentication Buttons */}
             <SignedIn>
@@ -155,7 +200,7 @@ export default function Header() {
           </motion.div>
         )}
       </motion.header>
-      <motion.div style={{ scaleX: scrollYProgress }} className=" mt-0.5 fixed  origin-left bg-black h-2 w-full top-16 z-50 "></motion.div>
+      <motion.div style={{ scaleX: scrollYProgress }} className="mt-0.5 fixed origin-left bg-black h-2 w-full top-16 z-50 "></motion.div>
     </>
   );
 }

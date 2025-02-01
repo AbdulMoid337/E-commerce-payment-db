@@ -4,7 +4,8 @@ import { useCart } from '@/contexts/cartcontext';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Trash2, Plus, Minus } from 'lucide-react';
+import { Trash2, Plus, Minus, X, CheckCircle2 } from 'lucide-react';
+import { toast } from "sonner";
 
 export default function CartPage() {
   const { 
@@ -14,6 +15,30 @@ export default function CartPage() {
     calculateTotal, 
     clearCart 
   } = useCart();
+
+  const handleRemoveFromCart = (item) => {
+    removeFromCart(item.id);
+    
+    // Show toast notification
+    toast.custom((t) => (
+      <div className="bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-4">
+        <Trash2 className="w-6 h-6" />
+        <div>
+          <p className="font-semibold">{item.name} removed from cart</p>
+          <p className="text-sm opacity-80">Item has been deleted</p>
+        </div>
+        <button 
+          onClick={() => toast.dismiss(t.id)}
+          className="ml-auto hover:bg-red-600 p-2 rounded-full"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    ), { 
+      duration: 3000,
+      position: 'top-right'
+    });
+  };
 
   if (cart.length === 0) {
     return (
@@ -77,7 +102,7 @@ export default function CartPage() {
               <Button 
                 variant="destructive" 
                 size="icon"
-                onClick={() => removeFromCart(item.id)}
+                onClick={() => handleRemoveFromCart(item)}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
