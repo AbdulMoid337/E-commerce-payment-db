@@ -3,88 +3,134 @@ import { AnimatePresence, motion } from "framer-motion"
 import Link from "next/link"
 import { useState } from "react"
 import Image from "next/image"
+import { ShoppingCart, Check, CheckCircle2, X } from "lucide-react"
+import { toast } from "sonner"
+import { useCart } from "@/contexts/cartcontext"
 
 export const HoverEffect = ({ items, className }) => {
+  const { addToCart } = useCart()
   const [hoveredIndex, setHoveredIndex] = useState(null)
+  const [activeProducts, setActiveProducts] = useState(new Set())
+
+  const handleAddToCart = (item, event) => {
+    // Prevent link navigation
+    event.preventDefault();
+    
+    // Add to cart
+    addToCart(item);
+
+    // Add product to active products
+    setActiveProducts(prev => new Set(prev).add(item.id));
+
+    // Show toast notification
+    toast.custom((t) => (
+      <div className="bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-4">
+        <CheckCircle2 className="w-6 h-6" />
+        <div>
+          <p className="font-semibold">{item.title} added to cart</p>
+          <p className="text-sm opacity-80">Your item is ready for checkout</p>
+        </div>
+        <button 
+          onClick={() => toast.dismiss(t.id)}
+          className="ml-auto hover:bg-green-600 p-2 rounded-full"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    ), { 
+      duration: 3000,
+      position: 'top-right'
+    });
+  }
 
   return (
-    <div className={cn("grid grid-cols-1 md:grid-cols-2  lg:grid-cols-3  py-10", className)}>
+    <div className={cn("grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 py-10", className)}>
       {items.map((item, idx) => (
         <div
           key={item.id}
-          className="relative group block p-2 h-full w-full"
+          className="relative group block h-full w-full"
           onMouseEnter={() => setHoveredIndex(idx)}
           onMouseLeave={() => setHoveredIndex(null)}
         >
-          <AnimatePresence>
+          <AnimatePresence mode="wait">
             {hoveredIndex === idx && (
-              <motion.span
-                className="absolute inset-0 h-full w-full bg-blue-950/30 backdrop-blur-lg block rounded-3xl"
+              <motion.div
+                className="absolute -inset-2 bg-blue-950/20 rounded-3xl z-0"
                 layoutId="hoverBackground"
                 initial={{ opacity: 0 }}
                 animate={{
                   opacity: 1,
-                  transition: { duration: 0.15 },
+                  transition: { duration: 0.2 },
                 }}
                 exit={{
                   opacity: 0,
-                  transition: { duration: 0.15, delay: 0.2 },
+                  transition: { duration: 0.2 },
                 }}
               />
             )}
           </AnimatePresence>
-          <Card>
-            <div className="relative w-full h-64">
-              <Image 
-                src={item.imageUrl} 
-                alt={item.title} 
-                fill
-                className="object-cover rounded-t-2xl"
-              />
-            </div>
-            <div className="p-6">
-              <CardTitle>{item.title}</CardTitle>
-              <CardDescription>{item.description}</CardDescription>
-              <div className="flex justify-between items-center mt-4">
-                <span className="text-2xl font-bold text-blue-600">
-                  ${item.price.toFixed(2)}
-                </span>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={item.onAddToCart}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-blue-600"
-                >
-                  Add to Cart
-                </motion.button>
+          <Link 
+            href={`/product/${item.id}`} 
+            className="block relative w-full h-full"
+            prefetch={false}
+          >
+            <div className="bg-white shadow-lg rounded-2xl p-6 transform transition-all h-full flex flex-col relative z-10">
+              {/* Product Image */}
+              <div className="relative w-full h-48 overflow-hidden rounded-2xl group mb-4">
+                <Image
+                  src={item.imageUrl}
+                  alt={item.title}
+                  fill
+                  className="object-cover transition-transform group-hover:scale-105"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
+              </div>
+
+              {/* Product Info */}
+              <div className="flex-grow flex flex-col">
+                <h3 className="text-2xl font-bold text-black mb-2 text-center">{item.title}</h3>
+                <p className="text-gray-600 text-base mb-4 line-clamp-2 text-center flex-grow">{item.description}</p>
+
+                {/* Pricing */}
+                <div className="flex justify-center items-center mb-4">
+                  <span className="text-black font-bold text-xl">
+                    ₹{item.price.toFixed(2)}
+                  </span>
+                </div>
+
+                {/* Add to Cart Button */}
+                <div className="flex justify-center mt-auto">
+                  <motion.button 
+                    onClick={(e) => handleAddToCart(item, e)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`
+                      w-auto px-4 h-9 flex items-center justify-center 
+                      font-semibold rounded-xl text-xs transition-all duration-300
+                      ${activeProducts.has(item.id)
+                        ? 'bg-green-500 text-white' 
+                        : 'bg-black text-white hover:bg-gray-800'}
+                    `}
+                    disabled={activeProducts.has(item.id)}
+                  >
+                    {activeProducts.has(item.id) ? (
+                      <div className="flex items-center space-x-1">
+                        <Check className="w-3 h-3" />
+                        <span>Added</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-1">
+                        <ShoppingCart className="w-3 h-3" />
+                        <span>Add to Cart</span>
+                      </div>
+                    )}
+                  </motion.button>
+                </div>
               </div>
             </div>
-          </Card>
+          </Link>
         </div>
       ))}
     </div>
   )
-}
-
-export const Card = ({ className, children }) => {
-  return (
-    <div
-      className={cn(
-        "rounded-2xl h-full w-full p-4 overflow-hidden bg-black border border-transparent dark:border-white/[0.2] group-hover:border-slate-700 relative z-20",
-        className,
-      )}
-    >
-      <div className="relative z-50">
-        <div className="p-4">{children}</div>
-      </div>
-    </div>
-  )
-}
-
-export const CardTitle = ({ className, children }) => {
-  return <h4 className={cn("text-zinc-100 font-bold tracking-wide mt-4", className)}>{children}</h4>
-}
-
-export const CardDescription = ({ className, children }) => {
-  return <p className={cn("mt-8 text-zinc-400 tracking-wide leading-relaxed text-sm", className)}>{children}</p>
 }

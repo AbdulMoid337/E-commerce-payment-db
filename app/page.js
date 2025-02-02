@@ -9,6 +9,7 @@ import Fcollection from "../components/Fcollection";
 import Featurescollection from "../components/Featurescollection";
 import { motion } from "framer-motion";
 import Loader from "../components/Loader"; // Reference the loader component
+import { MarqueeDemo as Marquee } from "../components/Marquee";
 
 export default function Home() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -167,6 +168,7 @@ export default function Home() {
 
       <Featurescollection />
       <Fcollection />
+      <Marquee className="mt-10 mb-10 w-full max-w-6xl mx-auto px-4 md:px-6 lg:px-8"/>
     </>
   );
 }

@@ -18,7 +18,7 @@ import { useCart } from "@/contexts/cartcontext";
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [flyingItem, setFlyingItem] = useState(null);
-  const scrollYProgress = useScroll().scrollYProgress;
+  const { scrollYProgress } = useScroll();
   const { cart, calculateTotal, getTotalItems, isInCart, addItemToCart } = useCart();
   const pathname = usePathname();
   const cartIconRef = useRef(null);
@@ -41,6 +41,28 @@ export default function Header() {
 
   return (
     <>
+      <motion.div 
+        style={{ 
+          scaleX: scrollYProgress,
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '7px',
+          backgroundColor: 'transparent',
+          transformOrigin: 'left',
+          zIndex: 100
+        }}
+      >
+        <div 
+          style={{ 
+            height: '100%', 
+            background: 'linear-gradient(to right, #A97CF8, #F38CB8, #FDCC92)',
+            width: '100%',
+            transformOrigin: 'left'
+          }} 
+        />
+      </motion.div>
       <motion.header
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -200,7 +222,6 @@ export default function Header() {
           </motion.div>
         )}
       </motion.header>
-      <motion.div style={{ scaleX: scrollYProgress }} className="mt-0.5 fixed origin-left bg-black h-2 w-full top-16 z-50 "></motion.div>
     </>
   );
 }

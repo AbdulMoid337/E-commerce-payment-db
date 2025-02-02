@@ -2,15 +2,18 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
+import Link from 'next/link';
 import products from '@/data/products';
 import { useCart } from '@/contexts/cartcontext';
 import { toast } from 'sonner';
 import { CheckCircle2, ShoppingCart, Check, X } from 'lucide-react';
+import { HoverEffect, Card, CardTitle, CardDescription } from '@/components/ui/card-hover-effect';
 
 export default function ShopPage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const { addToCart, cart } = useCart();
   const [activeProducts, setActiveProducts] = useState(new Set());
+  const [hoveredIndex, setHoveredIndex] = useState(null);
 
   const categories = ['All', 'Electronics', 'Fashion', 'Sports', 'Home'];
 
@@ -30,23 +33,6 @@ export default function ShopPage() {
     type: "tween",
     ease: "anticipate",
     duration: 0.5
-  };
-
-  const productVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: { 
-      opacity: 1, 
-      scale: 1,
-      transition: {
-        duration: 0.3
-      }
-    },
-    hover: { 
-      scale: 1.05,
-      transition: {
-        duration: 0.2
-      }
-    }
   };
 
   const handleAddToCart = (product, event) => {
@@ -144,69 +130,20 @@ export default function ShopPage() {
         </div>
 
         {/* Product Grid */}
-        <AnimatePresence>
-          <motion.div 
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"
-          >
-            {filteredProducts.map(product => (
-              <motion.div
-                key={product.id}
-                variants={productVariants}
-                initial="hidden"
-                animate="visible"
-                whileHover="hover"
-                className="bg-white rounded-lg shadow-lg overflow-hidden"
-              >
-                <div className="relative w-full h-64">
-                  <Image 
-                    src={product.imageUrl} 
-                    alt={product.name} 
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-                <div className="p-6">
-                  <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                    {product.name}
-                  </h2>
-                  <p className="text-gray-600 mb-4 text-sm">
-                    {product.description}
-                  </p>
-                  <div className="flex justify-between items-center">
-                    <span className="text-2xl font-bold text-blue-600">
-                      ${product.price.toFixed(2)}
-                    </span>
-                    <motion.button 
-                      onClick={(e) => handleAddToCart(product, e)}
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className={`
-                        w-auto px-4 h-10 flex items-center justify-center 
-                        font-semibold rounded-xl text-sm  transition-all duration-300
-                        ${activeProducts.has(product.id)
-                          ? 'bg-green-500 text-white' 
-                          : 'bg-black text-white hover:bg-green-600'}
-                      `}
-                      disabled={activeProducts.has(product.id)}
-                    >
-                      {activeProducts.has(product.id) ? (
-                        <div className="flex items-center space-x-1">
-                          <Check className="w-4 h-4" />
-                          <span>Added</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center cursor-pointer space-x-1">
-                          <ShoppingCart className="w-4  h-4" />
-                          <span>Add to Cart</span>
-                        </div>
-                      )}
-                    </motion.button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </AnimatePresence>
+        <HoverEffect 
+          items={filteredProducts.map(product => ({
+            id: product.id,
+            title: product.name,
+            description: product.description,
+            imageUrl: product.imageUrl,
+            price: product.price,
+            isAdded: activeProducts.has(product.id),
+            onAddToCart: (e) => {
+              handleAddToCart(product, e);
+            }
+          }))}
+          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"
+        />
       </div>
     </motion.div>
   );
