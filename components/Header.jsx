@@ -6,7 +6,6 @@ import { ShoppingCart, Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from 'next/navigation';
 import {
-  ClerkProvider,
   SignInButton,
   SignedIn,
   SignedOut,
