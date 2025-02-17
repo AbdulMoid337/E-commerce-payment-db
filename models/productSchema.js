@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const ProductSchema = new mongoose.Schema(
   {
-    title: {
+    name: {
       type: String,
       required: true,
       trim: true,
@@ -24,11 +24,23 @@ const ProductSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    reviews: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        rating: {
+          type: Number,
+          required: true,
+        },
+        comment: {
+          type: String,
+        },
+      },
+    ],
     images: [String], // Array of image URLs
-    rating: {
-      type: Number,
-      default: 0,
-    },
   },
   { timestamps: true }
 );

@@ -410,9 +410,9 @@ function ProductsSection() {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredProducts.map(product => (
+        {filteredProducts.map((product, index) => (
           <div 
-            key={product.id} 
+            key={`product-${product.id}-${index}`} 
             className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-4 rounded-lg shadow-sm relative group"
           >
             <img 

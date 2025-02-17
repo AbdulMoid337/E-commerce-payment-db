@@ -65,7 +65,7 @@ const FeaturesCollection = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {products.map((product, index) => (
             <div
-              key={product.id}
+              key={`product-${product.id}-${index}`}
               className="relative group block h-full w-full"
               onMouseEnter={() => setHoveredIndex(index)}
               onMouseLeave={() => setHoveredIndex(null)}
