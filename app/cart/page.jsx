@@ -1,6 +1,6 @@
 "use client"
 
-import { useCart } from '@/contexts/cartcontext';
+import { useCart } from '@/context/cartcontext';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';

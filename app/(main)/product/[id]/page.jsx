@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { motion } from "framer-motion";
 import { CheckCircle2, ShoppingCart, Check, X, Star, MessageCircle, MessageSquareMore } from "lucide-react";
 import { toast } from "sonner";
-import { useCart } from "@/contexts/cartcontext";
+import { useCart } from "@/context/cartcontext";
 import products from "@/data/products";
 
 export default function ProductDetailPage({ params }) {

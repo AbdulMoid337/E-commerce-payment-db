@@ -12,7 +12,7 @@ import {
   UserButton
 } from '@clerk/nextjs';
 import { Button } from "./ui/button";
-import { useCart } from "@/contexts/cartcontext";
+import { useCart } from "@/context/cartcontext";
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);

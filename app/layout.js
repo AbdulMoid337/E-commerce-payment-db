@@ -3,7 +3,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
-import { CartProvider } from "@/contexts/cartcontext";
+import { CartProvider } from "@/context/cartcontext";
 import { Toaster } from "sonner";
 
 const geistSans = Geist({

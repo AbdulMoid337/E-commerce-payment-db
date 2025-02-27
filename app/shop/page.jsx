@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import products from '@/data/products';
-import { useCart } from '@/contexts/cartcontext';
+import { useCart } from '@/context/cartcontext';
 import { toast } from 'sonner';
 import { CheckCircle2, ShoppingCart, Check, X } from 'lucide-react';
 import { HoverEffect, Card, CardTitle, CardDescription } from '@/components/ui/card-hover-effect';

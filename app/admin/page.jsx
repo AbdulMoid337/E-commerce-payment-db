@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { checkRole } from '@/utils/roles'
 import { Input } from "@/components/ui/input";
-
 import Loader from '@/components/Loader';
 import { 
   LayoutDashboard, 
@@ -36,6 +35,7 @@ import {
   Cell 
 } from 'recharts';
 import products from '@/data/products';
+import Link from "next/link";
 
 export default function AdminDashboard() {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -224,7 +224,6 @@ function OverviewSection() {
       title: 'Add New Product', 
       icon: PlusCircle, 
       color: 'text-green-500',
-      action: () => {/* Implement add product logic */}
     },
     { 
       title: 'Manage Settings', 
@@ -322,7 +321,7 @@ function OverviewSection() {
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
           <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-          <div className="space-y-2">
+          <Link href="/admin/products/new" className="space-y-2">
             {quickActions.map((action, index) => (
               <Button 
                 key={index} 
@@ -334,7 +333,7 @@ function OverviewSection() {
                 {action.title}
               </Button>
             ))}
-          </div>
+          </Link>
         </div>
 
         <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { useCart } from "@/contexts/cartcontext";
+import { useCart } from "@/context/cartcontext";
 import { CheckCircle2, ShoppingCart, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import products from "@/data/products";

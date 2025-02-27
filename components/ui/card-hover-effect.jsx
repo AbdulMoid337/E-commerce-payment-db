@@ -5,7 +5,7 @@ import { useState } from "react"
 import Image from "next/image"
 import { ShoppingCart, Check, CheckCircle2, X } from "lucide-react"
 import { toast } from "sonner"
-import { useCart } from "@/contexts/cartcontext"
+import { useCart } from "@/context/cartcontext"
 
 export const HoverEffect = ({ items, className }) => {
   const { addToCart } = useCart()

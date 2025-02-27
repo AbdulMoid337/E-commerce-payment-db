@@ -7,71 +7,108 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Package, Save, X } from 'lucide-react';
-import products from '@/data/products';
+import products from '@/data/products'; // Keep for initial data or fallback
 import Loader from '@/components/Loader';
+import { toast } from 'sonner'; // Add toast for notifications
 
 export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
-  const productId = params.id === 'new' ? null : parseInt(params.id);
+  const productId = params.id === 'new' ? null : params.id;
 
   const [product, setProduct] = useState({
-    id: productId || Date.now(),
     name: '',
     description: '',
     category: '',
     price: '',
-    rating: '',
-    imageUrl: ''
+    rating: 0,
+    imageUrl: '',
+    stock: 0
   });
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    // Find the product by ID for editing
-    if (productId) {
-      const foundProduct = products.find(p => p.id === productId);
-      if (foundProduct) {
-        setProduct(foundProduct);
-      } else {
-        router.push('/products');
+    const fetchProduct = async () => {
+      // If editing an existing product
+      if (productId && productId !== 'new') {
+        try {
+          const response = await fetch(`/api/products/${productId}`);
+          if (response.ok) {
+            const data = await response.json();
+            setProduct({
+              ...data,
+              imageUrl: data.images?.[0] || '' // Use first image as imageUrl
+            });
+          } else {
+            toast.error("Failed to load product");
+            router.push('/admin/products');
+          }
+        } catch (error) {
+          console.error("Error fetching product:", error);
+          toast.error("Error loading product");
+        }
       }
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    fetchProduct();
   }, [productId, router]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setProduct(prev => ({
       ...prev,
-      [name]: name === 'price' || name === 'rating' ? parseFloat(value) : value
+      [name]: name === 'price' || name === 'rating' || name === 'stock' 
+        ? parseFloat(value) 
+        : value
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsSaving(true);
     
-    if (productId) {
-      // Editing existing product
-      const productIndex = products.findIndex(p => p.id === productId);
+    try {
+      // Prepare data for API
+      const productData = {
+        ...product,
+        images: [product.imageUrl], // Convert imageUrl to images array for MongoDB schema
+      };
       
-      if (productIndex !== -1) {
-        products[productIndex] = product;
+      // API endpoint and method based on whether we're creating or updating
+      const url = productId && productId !== 'new' 
+        ? `/api/products/${productId}` 
+        : '/api/products';
+      
+      const method = productId && productId !== 'new' ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(productData),
+      });
+      
+      if (response.ok) {
+        toast.success(productId ? 'Product updated successfully' : 'Product added successfully');
+        router.push('/admin/products');
+      } else {
+        const error = await response.json();
+        toast.error(error.message || 'Failed to save product');
       }
-    } else {
-      // Adding new product
-      products.push(product);
+    } catch (error) {
+      console.error('Error saving product:', error);
+      toast.error('An error occurred while saving the product');
+    } finally {
+      setIsSaving(false);
     }
-    
-    // Here you would typically send this to a backend API
-    console.log(productId ? 'Updated Product:' : 'Added Product:', product);
-    
-    // Redirect back to products list
-    router.push('/products');
   };
 
   const handleCancel = () => {
-    router.push('/products');
+    router.push('/admin/products');
   };
 
   if (isLoading) {
@@ -79,11 +116,11 @@ export default function EditProductPage() {
   }
 
   return (
-    <div className="container  mx-auto pt-40  pb-24 px-4 py-8">
+    <div className="container mx-auto pt-40 pb-24 px-4 py-8">
       <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
         <h1 className="text-2xl font-bold mb-6 flex items-center">
           <Package className="mr-3 text-blue-500" /> 
-          {productId ? 'Edit Product' : 'Add New Product'}
+          {productId && productId !== 'new' ? 'Edit Product' : 'Add New Product'}
         </h1>
         
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -159,17 +196,31 @@ export default function EditProductPage() {
             </div>
 
             <div>
-              <Label htmlFor="imageUrl">Image URL</Label>
+              <Label htmlFor="stock">Stock</Label>
               <Input
-                type="url"
-                id="imageUrl"
-                name="imageUrl"
-                value={product.imageUrl}
+                type="number"
+                id="stock"
+                name="stock"
+                value={product.stock}
                 onChange={handleInputChange}
+                min="0"
                 required
                 className="mt-1"
               />
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="imageUrl">Image URL</Label>
+            <Input
+              type="url"
+              id="imageUrl"
+              name="imageUrl"
+              value={product.imageUrl}
+              onChange={handleInputChange}
+              required
+              className="mt-1"
+            />
           </div>
 
           <div className="flex justify-end space-x-4 mt-6">
@@ -178,15 +229,17 @@ export default function EditProductPage() {
               variant="outline" 
               onClick={handleCancel}
               className="flex items-center"
+              disabled={isSaving}
             >
               <X className="mr-2 h-4 w-4" /> Cancel
             </Button>
             <Button 
               type="submit" 
               className="flex items-center"
+              disabled={isSaving}
             >
               <Save className="mr-2 h-4 w-4" /> 
-              {productId ? 'Save Changes' : 'Add Product'}
+              {isSaving ? 'Saving...' : (productId && productId !== 'new' ? 'Save Changes' : 'Add Product')}
             </Button>
           </div>
         </form>

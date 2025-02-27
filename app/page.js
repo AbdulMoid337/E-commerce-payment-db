@@ -91,14 +91,16 @@ export default function Home() {
                   href={`/product/${product.id}`}
                   className="block w-full cursor-pointer"
                 >
-                  <Image
+                <div className="aspect-[16/9] w-full rounded-lg overflow-hidden">
+                <Image
                     src={product.imageUrl}
                     alt={product.name}
-                    width={1200}
-                    height={600}
+                    width={1920}
+                    height={1080}
                     priority
-                    className="w-full h-[500px] object-cover object-center rounded-lg transition-transform duration-300 hover:scale-105"
-                  />
+                    className="w-full h-full object-cover object-center transition-transform duration-300 hover:scale-105"
+                />
+                </div>
                 </Link>
 
                 {/* Product Info */}
