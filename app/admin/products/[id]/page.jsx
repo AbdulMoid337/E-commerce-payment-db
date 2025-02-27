@@ -21,7 +21,7 @@ export default function EditProductPage() {
     description: '',
     category: '',
     price: '',
-    rating: 0,
+    rating: 1,
     imageUrl: '',
     stock: 0
   });
@@ -29,33 +29,7 @@ export default function EditProductPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    const fetchProduct = async () => {
-      // If editing an existing product
-      if (productId && productId !== 'new') {
-        try {
-          const response = await fetch(`/api/products/${productId}`);
-          if (response.ok) {
-            const data = await response.json();
-            setProduct({
-              ...data,
-              imageUrl: data.images?.[0] || '' // Use first image as imageUrl
-            });
-          } else {
-            toast.error("Failed to load product");
-            router.push('/admin/products');
-          }
-        } catch (error) {
-          console.error("Error fetching product:", error);
-          toast.error("Error loading product");
-        }
-      }
-      setIsLoading(false);
-    };
-
-    fetchProduct();
-  }, [productId, router]);
-
+  // Add the missing handleInputChange function
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setProduct(prev => ({
@@ -66,6 +40,39 @@ export default function EditProductPage() {
     }));
   };
 
+  // In the useEffect function where you fetch the product
+  useEffect(() => {
+    const fetchProduct = async () => {
+      // If editing an existing product
+      if (productId && productId !== 'new') {
+        try {
+          setIsLoading(true);
+          const response = await fetch(`/api/products/${productId}`);
+          if (response.ok) {
+            const data = await response.json();
+            setProduct({
+              ...data,
+              imageUrl: data.images?.[0] || ''
+            });
+          } else {
+            toast.error("Failed to load product");
+            router.push('/admin/products');
+          }
+        } catch (error) {
+          console.error("Error fetching product:", error);
+          toast.error("Error loading product");
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setIsLoading(false);
+      }
+    };
+  
+    fetchProduct();
+  }, [productId, router]);
+
+  // In the handleSubmit function
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
@@ -84,6 +91,8 @@ export default function EditProductPage() {
       
       const method = productId && productId !== 'new' ? 'PUT' : 'POST';
       
+      console.log("Saving product with URL:", url, "Method:", method, "Data:", productData);
+      
       const response = await fetch(url, {
         method,
         headers: {
@@ -92,9 +101,10 @@ export default function EditProductPage() {
         body: JSON.stringify(productData),
       });
       
+      // Change this line in handleSubmit function
       if (response.ok) {
         toast.success(productId ? 'Product updated successfully' : 'Product added successfully');
-        router.push('/admin/products');
+        router.push('/admin/'); 
       } else {
         const error = await response.json();
         toast.error(error.message || 'Failed to save product');
@@ -209,7 +219,7 @@ export default function EditProductPage() {
               />
             </div>
           </div>
-
+          
           <div>
             <Label htmlFor="imageUrl">Image URL</Label>
             <Input
@@ -221,6 +231,21 @@ export default function EditProductPage() {
               required
               className="mt-1"
             />
+            {product.imageUrl && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-500 mb-1">Image Preview:</p>
+                <img 
+                  src={product.imageUrl} 
+                  alt="Product preview" 
+                  className="w-full max-h-48 object-contain border rounded-md"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = '/placeholder-image.jpg'; // Fallback image
+                    console.error('Error loading image:', product.imageUrl);
+                  }}
+                />
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end space-x-4 mt-6">

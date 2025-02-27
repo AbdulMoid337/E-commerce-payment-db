@@ -1,21 +1,50 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import products from '@/data/products';
 import { useCart } from '@/context/cartcontext';
 import { toast } from 'sonner';
 import { CheckCircle2, ShoppingCart, Check, X } from 'lucide-react';
-import { HoverEffect, Card, CardTitle, CardDescription } from '@/components/ui/card-hover-effect';
+import { HoverEffect } from '@/components/ui/card-hover-effect';
+import Loader from '@/components/Loader';
 
 export default function ShopPage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const { addToCart, cart } = useCart();
+  const { addToCart } = useCart();
   const [activeProducts, setActiveProducts] = useState(new Set());
   const [hoveredIndex, setHoveredIndex] = useState(null);
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState(['All']);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const categories = ['All', 'Electronics', 'Fashion', 'Sports', 'Home'];
+  // Fetch products from MongoDB
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/products');
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch products');
+        }
+        
+        const data = await response.json();
+        setProducts(data);
+        
+        // Extract unique categories
+        const uniqueCategories = ['All', ...new Set(data.map(product => product.category))];
+        setCategories(uniqueCategories);
+      } catch (err) {
+        console.error('Error fetching products:', err);
+        toast.error('Failed to load products');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   const filteredProducts = selectedCategory.toLowerCase() === 'all' 
     ? products 
@@ -43,7 +72,7 @@ export default function ShopPage() {
     addToCart(product);
 
     // Add product to active products
-    setActiveProducts(prev => new Set(prev).add(product.id));
+    setActiveProducts(prev => new Set(prev).add(product._id || product.id));
 
     // Show toast notification
     toast.custom((t) => (
@@ -65,6 +94,8 @@ export default function ShopPage() {
       position: 'top-right'
     });
   };
+
+  if (isLoading) return <Loader />;
 
   return (
     <motion.div 
@@ -130,20 +161,26 @@ export default function ShopPage() {
         </div>
 
         {/* Product Grid */}
-        <HoverEffect 
-          items={filteredProducts.map(product => ({
-            id: product.id,
-            title: product.name,
-            description: product.description,
-            imageUrl: product.imageUrl,
-            price: product.price,
-            isAdded: activeProducts.has(product.id),
-            onAddToCart: (e) => {
-              handleAddToCart(product, e);
-            }
-          }))}
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"
-        />
+        {filteredProducts.length > 0 ? (
+          <HoverEffect 
+            items={filteredProducts.map(product => ({
+              id: product._id || product.id,
+              title: product.name,
+              description: product.description,
+              imageUrl: product.images?.[0] || product.imageUrl,
+              price: product.price,
+              isAdded: activeProducts.has(product._id || product.id),
+              onAddToCart: (e) => {
+                handleAddToCart(product, e);
+              }
+            }))}
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"
+          />
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-xl text-gray-500">No products found in this category</p>
+          </div>
+        )}
       </div>
     </motion.div>
   );

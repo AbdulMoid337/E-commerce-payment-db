@@ -70,7 +70,7 @@ export const HoverEffect = ({ items, className }) => {
             )}
           </AnimatePresence>
           <Link 
-            href={`/product/${item.id}`} 
+            href={`/products/${item.id}`} 
             className="block relative w-full h-full"
             prefetch={false}
           >

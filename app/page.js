@@ -88,7 +88,7 @@ export default function Home() {
                 className="carousel-item w-full flex-shrink-0 relative"
               >
                 <Link
-                  href={`/product/${product.id}`}
+                  href={`/products/${product.id}`}
                   className="block w-full cursor-pointer"
                 >
                 <div className="aspect-[16/9] w-full rounded-lg overflow-hidden">

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { checkRole } from '@/utils/roles'
 import { Input } from "@/components/ui/input";
 import Loader from '@/components/Loader';
+import { toast } from 'sonner'; // Add toast import
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -363,35 +364,76 @@ function OverviewSection() {
 function ProductsSection() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch products from the database
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/products');
+        if (response.ok) {
+          const data = await response.json();
+          setProducts(data);
+        } else {
+          toast.error('Failed to load products');
+        }
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        toast.error('Error loading products');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   const filteredProducts = products.filter(product => 
-    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    product.category.toLowerCase().includes(searchTerm.toLowerCase())
+    product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleEditProduct = (productId) => {
     router.push(`/admin/products/${productId}`);
   };
 
-  const handleDeleteProduct = (productId) => {
-    // In a real application, this would be an API call
-    const index = products.findIndex(p => p.id === productId);
-    if (index !== -1) {
-      products.splice(index, 1);
-      // Optionally, trigger a re-render or state update
+  const handleDeleteProduct = async (productId) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      try {
+        const response = await fetch(`/api/products/${productId}`, {
+          method: 'DELETE',
+        });
+
+        if (response.ok) {
+          // Remove the product from the local state
+          setProducts(products.filter(product => product._id !== productId));
+          toast.success('Product deleted successfully');
+        } else {
+          const error = await response.json();
+          toast.error(error.message || 'Failed to delete product');
+        }
+      } catch (error) {
+        console.error('Error deleting product:', error);
+        toast.error('An error occurred while deleting the product');
+      }
     }
   };
 
-  const handleAddProduct = () => {
-    router.push('/admin/products/new');
-  };
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center py-12">
+      <Loader />
+    </div>;
+  }
 
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold">Products Management</h2>
+        <h2 className="text-xl font-semibold">Manage Products</h2>
         <Button 
-          onClick={handleAddProduct} 
+          onClick={() => router.push('/admin/products/new')}
           className="flex items-center"
         >
           <PlusCircle className="mr-2 h-4 w-4" /> Add New Product
@@ -399,57 +441,82 @@ function ProductsSection() {
       </div>
 
       <div className="mb-4">
-        <Input 
-          type="text" 
-          placeholder="Search products..." 
+        <Input
+          type="text"
+          placeholder="Search products..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full"
+          className="max-w-sm"
         />
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredProducts.map((product, index) => (
-          <div 
-            key={`product-${product.id}-${index}`} 
-            className="bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 p-4 rounded-lg shadow-sm relative group"
-          >
-            <img 
-              src={product.imageUrl} 
-              alt={product.name} 
-              className="w-full h-48 object-cover rounded-md mb-4" 
-            />
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">{product.name}</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{product.description}</p>
-            <div className="flex justify-between items-center">
-              <span className="text-xl font-bold text-blue-600">${product.price}</span>
-              <span className="text-yellow-500">★ {product.rating}</span>
-            </div>
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => handleEditProduct(product.id)}
-                className="bg-white hover:bg-gray-100 text-gray-700"
-              >
-                Edit
-              </Button>
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                onClick={() => handleDeleteProduct(product.id)}
-                className="bg-red-500 hover:bg-red-600 text-white"
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {filteredProducts.length === 0 && (
-        <div className="text-center text-gray-500 py-8">
-          No products found
+      {isLoading ? (
+        <div className="flex justify-center p-8">
+          <Loader />
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="bg-gray-100 dark:bg-gray-800">
+                <th className="p-2 text-left">Image</th>
+                <th className="p-2 text-left">Name</th>
+                <th className="p-2 text-left">Category</th>
+                <th className="p-2 text-left">Price</th>
+                <th className="p-2 text-left">Stock</th>
+                <th className="p-2 text-left">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((product) => (
+                  <tr key={product._id} className="border-b dark:border-gray-700">
+                    <td className="p-2">
+                      <div className="w-12 h-12 relative">
+                        <img 
+                          src={product.images?.[0] || product.imageUrl || '/placeholder-image.jpg'} 
+                          alt={product.name}
+                          className="w-full h-full object-cover rounded"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = '/placeholder-image.jpg';
+                          }}
+                        />
+                      </div>
+                    </td>
+                    <td className="p-2">{product.name}</td>
+                    <td className="p-2">{product.category}</td>
+                    <td className="p-2">${product.price?.toFixed(2)}</td>
+                    <td className="p-2">{product.stock}</td>
+                    <td className="p-2">
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditProduct(product._id)}
+                        >
+                          Edit
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => handleDeleteProduct(product._id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="p-4 text-center">
+                    No products found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
