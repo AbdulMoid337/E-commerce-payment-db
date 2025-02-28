@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import Search from "../components/Search";
-import products from "../data/products";
+// Remove the import of hardcoded products
+// import products from "../data/products";
 import Link from "next/link";
 import Image from "next/image";
 import Fcollection from "../components/Fcollection";
 import Featurescollection from "../components/Featurescollection";
 import { motion } from "framer-motion";
-import Loader from "../components/Loader"; // Reference the loader component
+import Loader from "../components/Loader";
 import { MarqueeDemo as Marquee } from "../components/Marquee";
 
 export default function Home() {
@@ -16,7 +17,27 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [slideWidth, setSlideWidth] = useState(0);
-  const [loaderVisible, setLoaderVisible] = useState(true); // Added loader state
+  const [loaderVisible, setLoaderVisible] = useState(true);
+  const [products, setProducts] = useState([]); // State to hold products
+
+  // Fetch products from MongoDB
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('/api/products');
+        if (!response.ok) {
+          throw new Error('Failed to fetch products');
+        }
+        const data = await response.json();
+        // Set only the first 5 products
+        setProducts(data.slice(0, 5));
+      } catch (error) {
+        console.error('Error fetching products:', error);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   // Hide loader after 2 seconds or when data is loaded
   useEffect(() => {
@@ -88,19 +109,19 @@ export default function Home() {
                 className="carousel-item w-full flex-shrink-0 relative"
               >
                 <Link
-                  href={`/products/${product.id}`}
+                  href={`/products/${product._id || product.id}`}
                   className="block w-full cursor-pointer"
                 >
-                <div className="aspect-[16/9] w-full rounded-lg overflow-hidden">
-                <Image
-                    src={product.imageUrl}
-                    alt={product.name}
-                    width={1920}
-                    height={1080}
-                    priority
-                    className="w-full h-full object-cover object-center transition-transform duration-300 hover:scale-105"
-                />
-                </div>
+                  <div className="aspect-[16/9] w-full rounded-lg overflow-hidden">
+                    <Image
+                      src={product.images?.[0] || product.imageUrl}
+                      alt={product.name}
+                      width={1920}
+                      height={1080}
+                      priority
+                      className="w-full h-full object-cover object-center transition-transform duration-300 hover:scale-105"
+                    />
+                  </div>
                 </Link>
 
                 {/* Product Info */}

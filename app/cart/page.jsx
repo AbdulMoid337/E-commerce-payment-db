@@ -68,7 +68,7 @@ export default function CartPage() {
             >
               <Image
                 src={item.imageUrl}
-                alt={item.name}
+                alt={`Product image of ${item.name}`}
                 width={100}
                 height={100}
                 className="object-contain"

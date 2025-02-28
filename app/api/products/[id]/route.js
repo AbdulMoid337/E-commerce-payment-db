@@ -4,10 +4,12 @@ import Product from '@/models/productSchema';
 import { auth } from '@clerk/nextjs/server';
 
 // GET a single product by ID
-export async function GET(request, { params }) {
+export async function GET(request, context) {
   try {
     await dbConnect();
-    const { id } = params;
+    
+    // Access the id directly from context.params
+    const { id } = context.params;
     
     const product = await Product.findById(id);
     
@@ -29,7 +31,7 @@ export async function GET(request, { params }) {
 }
 
 // PUT update a product
-export async function PUT(request, { params }) {
+export async function PUT(request, context) {
   try {
     // Temporarily bypass auth check for development
     // const { userId } = auth();
@@ -41,7 +43,7 @@ export async function PUT(request, { params }) {
     // }
     
     await dbConnect();
-    const { id } = params;
+    const { id } = context.params;
     const data = await request.json();
     
     // Ensure images array is properly formatted
@@ -75,21 +77,20 @@ export async function PUT(request, { params }) {
 }
 
 // DELETE a product
-// DELETE function - update to bypass auth check temporarily
-export async function DELETE(request, { params }) {
+export async function DELETE(request, context) {
   try {
     // Temporarily bypass auth check for development
     // const { userId } = auth();
     
     // if (!userId) {
-    //   return NextResponse.json(interceptar 650
+    //   return NextResponse.json(
     //     { message: 'Unauthorized' },
     //     { status: 401 }
     //   );
     // }
     
     await dbConnect();
-    const { id } = params;
+    const { id } = context.params;
     
     const product = await Product.findByIdAndDelete(id);
     

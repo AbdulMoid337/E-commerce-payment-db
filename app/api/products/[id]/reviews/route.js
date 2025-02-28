@@ -4,18 +4,21 @@ import dbConnect from '@/lib/dbConnect';
 import Product from '@/models/productSchema';
 import mongoose from 'mongoose';
 
-export async function POST(request, { params }) {
+export async function POST(request, context) {
   try {
     // Get the authenticated user's ID from Clerk
     const { userId } = auth();
     
+    // For development, use a valid ObjectId placeholder if no user is authenticated
     const placeholderObjectId = '507f1f77bcf86cd799439011';
     const reviewerId = userId || placeholderObjectId;
 
     await dbConnect();
-    const { id } = params;
+    
+    // Get the id from params correctly
+    const { id } = context.params;
     const { rating, comment } = await request.json();
-
+    
     // Validate input
     if (!rating || rating < 1 || rating > 5) {
       return NextResponse.json(
@@ -35,7 +38,7 @@ export async function POST(request, { params }) {
 
     // Add the review with a valid ObjectId
     product.reviews.push({
-      user: new mongoose.Types.ObjectId(reviewerId), // Convert to ObjectId
+      user: new mongoose.Types.ObjectId(reviewerId),
       rating,
       comment,
       createdAt: new Date()
