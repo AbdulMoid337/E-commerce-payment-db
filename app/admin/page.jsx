@@ -1,5 +1,6 @@
 "use client"
 
+import React from 'react';
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -149,127 +150,121 @@ function OverviewSection() {
     { month: 'Mar', sales: 0 },
     { month: 'Apr', sales: 0 },
     { month: 'May', sales: 0 },
+    { month: 'Jun', sales: 0 },
   ]);
 
   const [totalSales, setTotalSales] = useState(0);
   const [totalProducts, setTotalProducts] = useState(0);
   const [activeUsers, setActiveUsers] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
+  const [productDistribution, setProductDistribution] = useState([]);
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching real data
     const fetchDashboardData = async () => {
       try {
-        // Simulate dynamic sales data
-        const monthlySales = [
-          { month: 'Jan', sales: 4200 },
-          { month: 'Feb', sales: 5600 },
-          { month: 'Mar', sales: 4800 },
-          { month: 'Apr', sales: 6300 },
-          { month: 'May', sales: 5900 },
-        ];
-        setSalesData(monthlySales);
-
-        // Calculate total sales
-        const total = monthlySales.reduce((sum, month) => sum + month.sales, 0);
-        setTotalSales(total);
-
-        // Total products from products array
-        setTotalProducts(products.length);
-
-        // Get total active users from Clerk
-        if (user) {
-          const response = await fetch(`/api/users/count`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
+        setIsLoading(true);
+        
+        // Fetch products count and distribution
+        const productsResponse = await fetch('/api/products');
+        if (productsResponse.ok) {
+          const productsData = await productsResponse.json();
+          setTotalProducts(productsData.length);
+          
+          // Calculate product distribution by category
+          const distribution = productsData.reduce((acc, product) => {
+            const existingCategory = acc.find(cat => cat.name === product.category);
+            if (existingCategory) {
+              existingCategory.value += 1;
+            } else if (product.category) {
+              acc.push({ name: product.category, value: 1 });
             }
-          });
-
-          if (response.ok) {
-            const { count } = await response.json();
-            setActiveUsers(2); // Hardcoded active users
-            setTotalUsers(count);
-          } else {
-            // Fallback to hardcoded values
-            setActiveUsers(2);
-            setTotalUsers(2);
-          }
+            return acc;
+          }, []);
+          
+          setProductDistribution(distribution);
         }
-
+        
+        // Fetch orders data for sales statistics
+        const ordersResponse = await fetch('/api/admin/orders/stats');
+        if (ordersResponse.ok) {
+          const { monthlySales, totalRevenue, recentOrders } = await ordersResponse.json();
+          setSalesData(monthlySales);
+          setTotalSales(totalRevenue);
+          setRecentOrders(recentOrders);
+        }
+        
+        // Fetch users directly from the users API instead of the stats API
+        const usersResponse = await fetch('/api/admin/users');
+        if (usersResponse.ok) {
+          const users = await usersResponse.json();
+          setTotalUsers(users.length || 0);
+          // Count active users
+          const activeCount = users.filter(user => user.isActive).length;
+          setActiveUsers(activeCount || 0);
+        }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        // Fallback to hardcoded values
-        setActiveUsers(2);
-        setTotalUsers(2);
+        toast.error('Failed to load dashboard data');
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchDashboardData();
-  }, [user]);
-
-  const productDistribution = products.reduce((acc, product) => {
-    const existingCategory = acc.find(cat => cat.name === product.category);
-    if (existingCategory) {
-      existingCategory.value += 1;
-    } else {
-      acc.push({ name: product.category, value: 1 });
-    }
-    return acc;
   }, []);
 
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28'];
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   const quickActions = [
     { 
       title: 'Add New Product', 
       icon: PlusCircle, 
       color: 'text-green-500',
+      href: '/admin/products/new'
     },
     { 
-      title: 'Manage Settings', 
-      icon: Settings, 
+      title: 'View Orders', 
+      icon: ShoppingCart, 
       color: 'text-blue-500',
-      action: () => {/* Implement settings management */}
+      href: '/admin/orders'
     },
     { 
-      title: 'View Notifications', 
-      icon: Bell, 
+      title: 'Manage Users', 
+      icon: Users, 
       color: 'text-yellow-500',
-      action: () => {/* Implement notifications */}
+      href: '/admin/users'
     }
   ];
 
-  const recentActivity = [
-    { 
-      id: 1, 
-      type: 'Product', 
-      description: 'New product "Wireless Headphones" added', 
-      time: '2 hours ago',
-      icon: Package
-    },
-    { 
-      id: 2, 
-      type: 'Order', 
-      description: 'Order #1234 processed', 
-      time: '4 hours ago',
-      icon: ShoppingCart
-    }
-  ];
+  const recentActivity = recentOrders.map(order => ({
+    id: order._id,
+    type: 'Order',
+    description: `Order #${order._id.slice(-6)} - ₹${order.totalAmount.toFixed(2)}`,
+    time: formatDistance(new Date(order.createdAt), new Date(), { addSuffix: true }),
+    icon: ShoppingCart
+  }));
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center py-12">
+      <Loader />
+    </div>;
+  }
 
   return (
     <div className="space-y-6">
       <div className="grid md:grid-cols-3 gap-6">
         <StatCard 
           title="Total Sales" 
-          value={`$${totalSales.toLocaleString()}`} 
+          value={`₹${totalSales.toLocaleString()}`} 
           icon={TrendingUp}
           trend="up"
           percentage={12.5}
         />
         <StatCard 
-          title="Active Users" 
-          value={`${activeUsers} / ${totalUsers}`} 
+          title="Total Users" 
+          value={totalUsers.toLocaleString()} 
           icon={Users}
           trend="up"
           percentage={8.2}
@@ -290,7 +285,7 @@ function OverviewSection() {
             <BarChart data={salesData}>
               <XAxis dataKey="month" />
               <YAxis />
-              <Tooltip />
+              <Tooltip formatter={(value) => [`₹${value}`, 'Sales']} />
               <Bar dataKey="sales" fill="#8884d8" />
             </BarChart>
           </ResponsiveContainer>
@@ -298,65 +293,35 @@ function OverviewSection() {
 
         <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
           <h3 className="text-lg font-semibold mb-4">Product Distribution</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={productDistribution}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {productDistribution.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+          {productDistribution.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={productDistribution}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                >
+                  {productDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value, name, props) => [`${value} products`, props.payload.name]} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex justify-center items-center h-64 text-gray-500">
+              No product data available
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-          <Link href="/admin/products/new" className="space-y-2">
-            {quickActions.map((action, index) => (
-              <Button 
-                key={index} 
-                variant="outline" 
-                className="w-full justify-start"
-                onClick={action.action}
-              >
-                <action.icon className={`mr-2 h-5 w-5 ${action.color}`} />
-                {action.title}
-              </Button>
-            ))}
-          </Link>
-        </div>
-
-        <div className="bg-white dark:bg-gray-700 rounded-lg p-4 shadow-sm">
-          <h3 className="text-lg font-semibold mb-4">Recent Activity</h3>
-          <div className="space-y-3">
-            {recentActivity.map((activity) => (
-              <div 
-                key={activity.id} 
-                className="flex items-center justify-between p-2 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md"
-              >
-                <div className="flex items-center space-x-3">
-                  <activity.icon className="h-5 w-5 text-gray-500" />
-                  <div>
-                    <p className="text-sm font-medium">{activity.description}</p>
-                    <p className="text-xs text-gray-500">{activity.time}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+     
     </div>
   );
 }
@@ -486,7 +451,7 @@ function ProductsSection() {
                     </td>
                     <td className="p-2">{product.name}</td>
                     <td className="p-2">{product.category}</td>
-                    <td className="p-2">${product.price?.toFixed(2)}</td>
+                    <td className="p-2">₹{product.price?.toFixed(2)}</td>
                     <td className="p-2">{product.stock}</td>
                     <td className="p-2">
                       <div className="flex space-x-2">
@@ -524,19 +489,320 @@ function ProductsSection() {
 }
 
 function OrdersSection() {
+  const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedOrderId, setExpandedOrderId] = useState(null);
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setIsLoading(true);
+        console.log('Fetching orders...');
+        const response = await fetch('/api/admin/orders');
+        console.log('Response status:', response.status);
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Orders data received:', data.length);
+          setOrders(data);
+        } else {
+          console.error('Failed to load orders, status:', response.status);
+          toast.error('Failed to load orders');
+        }
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+        toast.error('Error loading orders');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  const filteredOrders = orders.filter(order => 
+    order._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    order.userId?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getStatusColor = (status) => {
+    switch (status?.toLowerCase()) {
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
+      case 'processing': return 'bg-blue-100 text-blue-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const toggleOrderDetails = (orderId) => {
+    if (expandedOrderId === orderId) {
+      setExpandedOrderId(null);
+    } else {
+      setExpandedOrderId(orderId);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center py-12">
+      <Loader />
+    </div>;
+  }
+
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">Orders Management</h2>
-      {/* Add orders management UI */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Orders Management</h2>
+      </div>
+
+      <div className="mb-4">
+        <Input
+          type="text"
+          placeholder="Search orders by ID or user ID..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-100 dark:bg-gray-800">
+              <th className="p-2 text-left">Order ID</th>
+              <th className="p-2 text-left">User ID</th>
+              <th className="p-2 text-left">Date</th>
+              <th className="p-2 text-left">Status</th>
+              <th className="p-2 text-left">Items</th>
+              <th className="p-2 text-left">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredOrders.length > 0 ? (
+              filteredOrders.map((order) => (
+                <React.Fragment key={order._id}>
+                  <tr 
+                    className="border-b dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700"
+                    onClick={() => toggleOrderDetails(order._id)}
+                  >
+                    <td className="p-2">#{order._id?.slice(-6)}</td>
+                    <td className="p-2">{order.userId || 'Guest'}</td>
+                    <td className="p-2">
+                      {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
+                    </td>
+                    <td className="p-2">
+                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(order.status)}`}>
+                        {order.status || 'Processing'}
+                      </span>
+                    </td>
+                    <td className="p-2">
+                      {order.items?.length || 0} items
+                    </td>
+                    <td className="p-2 font-semibold">₹{order.totalAmount?.toFixed(2) || '0.00'}</td>
+                  </tr>
+                  {expandedOrderId === order._id && (
+                    <tr className="bg-gray-50 dark:bg-gray-700">
+                      <td colSpan="6" className="p-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <h4 className="font-semibold mb-2">Order Items</h4>
+                            <div className="space-y-2">
+                              {order.items?.map((item, index) => (
+                                <div key={index} className="flex items-center p-2 border rounded">
+                                  {item.productId?.images && item.productId.images[0] && (
+                                    <img 
+                                      src={item.productId.images[0]} 
+                                      alt={item.productId?.name || 'Product'} 
+                                      className="w-12 h-12 object-cover rounded mr-3"
+                                      onError={(e) => {
+                                        e.target.onerror = null;
+                                        e.target.src = '/placeholder-image.jpg';
+                                      }}
+                                    />
+                                  )}
+                                  <div>
+                                    <p className="font-medium">{item.productId?.name || 'Product'}</p>
+                                    <p className="text-sm text-gray-500">
+                                      ₹{item.price?.toFixed(2) || '0.00'} × {item.quantity} = 
+                                      ₹{((item.price || 0) * (item.quantity || 0)).toFixed(2)}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                          <div>
+                            <h4 className="font-semibold mb-2">Shipping Address</h4>
+                            {order.address ? (
+                              <div className="p-3 border rounded">
+                                <p>{order.address.name}</p>
+                                <p>{order.address.street}</p>
+                                <p>{order.address.city}, {order.address.state} {order.address.postalCode}</p>
+                                <p>{order.address.country}</p>
+                                <p className="mt-2">Phone: {order.address.phone}</p>
+                              </div>
+                            ) : (
+                              <p className="text-gray-500">No address information</p>
+                            )}
+                            
+                            <h4 className="font-semibold mt-4 mb-2">Order Summary</h4>
+                            <div className="p-3 border rounded">
+                              <div className="flex justify-between">
+                                <span>Subtotal:</span>
+                                <span>₹{order.totalAmount?.toFixed(2) || '0.00'}</span>
+                              </div>
+                              <div className="flex justify-between mt-1">
+                                <span>Shipping:</span>
+                                <span>₹0.00</span>
+                              </div>
+                              <div className="flex justify-between mt-1 font-bold">
+                                <span>Total:</span>
+                                <span>₹{order.totalAmount?.toFixed(2) || '0.00'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="6" className="p-4 text-center">
+                  No orders found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 
 function UsersSection() {
+  const [users, setUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch('/api/admin/users');
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data);
+        } else {
+          toast.error('Failed to load users');
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        toast.error('Error loading users');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  const filteredUsers = users.filter(user => 
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.name?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center py-12">
+      <Loader />
+    </div>;
+  }
+
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">Users Management</h2>
-      {/* Add users management UI */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Users Management</h2>
+      </div>
+
+      <div className="mb-4">
+        <Input
+          type="text"
+          placeholder="Search users by name or email..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-sm"
+        />
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-gray-100 dark:bg-gray-800">
+              <th className="p-2 text-left">Name</th>
+              <th className="p-2 text-left">Email</th>
+              <th className="p-2 text-left">Role</th>
+              <th className="p-2 text-left">Orders</th>
+              <th className="p-2 text-left">Joined Date</th>
+              <th className="p-2 text-left">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredUsers.length > 0 ? (
+              filteredUsers.map((user) => (
+                <tr key={user._id} className="border-b dark:border-gray-700">
+                  <td className="p-2">
+                    <div className="flex items-center">
+                      {user.image ? (
+                        <img 
+                          src={user.image}
+                          alt={user.name}
+                          className="w-8 h-8 rounded-full mr-2"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = '/placeholder-avatar.jpg';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-200 mr-2 flex items-center justify-center">
+                          {user.name?.charAt(0).toUpperCase() || '?'}
+                        </div>
+                      )}
+                      {user.name}
+                    </div>
+                  </td>
+                  <td className="p-2">{user.email}</td>
+                  <td className="p-2">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {user.role || 'user'}
+                    </span>
+                  </td>
+                  <td className="p-2">{user.orderCount || 0}</td>
+                  <td className="p-2">
+                    {new Date(user.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="p-2">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                    }`}>
+                      {user.isActive ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="6" className="p-4 text-center">
+                  No users found
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -548,14 +814,16 @@ function StatCard({ title, value, icon: Icon, trend, percentage }) {
         <div>
           <h4 className="text-sm text-gray-500 mb-2">{title}</h4>
           <p className="text-2xl font-bold">{value}</p>
-          <div className="flex items-center text-sm mt-1">
-            <span className={`mr-1 ${trend === 'up' ? 'text-green-500' : 'text-red-500'}`}>
-              {trend === 'up' ? '▲' : '▼'}
-            </span>
-            <span className={trend === 'up' ? 'text-green-500' : 'text-red-500'}>
-              {percentage}%
-            </span>
-          </div>
+          {percentage !== undefined && (
+            <div className="flex items-center text-sm mt-1">
+              <span className={`mr-1 ${trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : 'text-gray-500'}`}>
+                {trend === 'up' ? '▲' : trend === 'down' ? '▼' : '•'}
+              </span>
+              <span className={trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : 'text-gray-500'}>
+                {percentage}%
+              </span>
+            </div>
+          )}
         </div>
         <Icon className="h-8 w-8 text-blue-500 opacity-75" />
       </div>

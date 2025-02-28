@@ -1,150 +1,145 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
-import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { useUser } from '@clerk/nextjs'; // Changed from useAuth to useUser
+import { formatDistance } from 'date-fns';
 import Link from 'next/link';
+import Image from 'next/image';
+import { Button } from '@/components/ui/button';
+import Loader from '@/components/Loader';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export default function OrdersPage() {
-  const { user } = useUser();
+  const { isLoaded, isSignedIn, user } = useUser(); // Use useUser instead of useAuth
   const [orders, setOrders] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!user) {
-        setIsLoading(false);
-        return;
-      }
-
       try {
-        const response = await fetch(`/api/orders?userId=${user.id}`);
+        console.log("Fetching orders...");
+        const response = await fetch('/api/orders');
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch orders');
+          const errorData = await response.json();
+          console.error('Error response:', errorData);
+          throw new Error(errorData.error || 'Failed to fetch orders');
         }
+        
         const data = await response.json();
+        console.log("Orders fetched:", data);
         setOrders(data);
-        setIsLoading(false);
-      } catch (err) {
-        setError(err.message);
-        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching orders:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchOrders();
-  }, [user]);
+    if (isLoaded && isSignedIn) {
+      fetchOrders();
+    } else if (isLoaded && !isSignedIn) {
+      setLoading(false);
+    }
+  }, [isLoaded, isSignedIn]);
 
-  if (!user) {
+  if (!isLoaded || loading) {
+    return <Loader color="primary" size="md" />;
+  }
+
+  if (!isSignedIn) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <motion.div 
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-white p-8 rounded-lg shadow-md text-center"
-        >
-          <h1 className="text-2xl font-bold mb-4">Please Sign In</h1>
-          <p className="mb-6">You need to be signed in to view your orders.</p>
-          <Link href="/sign-in" className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-            Sign In
-          </Link>
-        </motion.div>
+      <div className="container mx-auto px-4 pt-32 pb-16 text-center">
+        <h1 className="text-3xl font-bold mb-4">Please Sign In</h1>
+        <p className="text-gray-600 mb-8">You need to be signed in to view your orders.</p>
+        <Link href="/sign-in">
+          <Button>Sign In</Button>
+        </Link>
       </div>
     );
   }
 
-  if (isLoading) {
+  if (!orders.length) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full"
-        />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5 }}
-          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
-          role="alert"
-        >
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-        </motion.div>
+      <div className="container mx-auto px-4 pt-32 pb-16 text-center">
+        <h1 className="text-3xl font-bold mb-4">No Orders Found</h1>
+        <p className="text-gray-600 mb-8">You haven't placed any orders yet.</p>
+        <Link href="/products">
+          <Button>Start Shopping</Button>
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 pt-36 pb-12 px-4 sm:px-6 lg:px-8">
-      <motion.div 
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-4xl mx-auto"
-      >
-        <h1 className="text-3xl font-extrabold text-center mb-8 text-gray-900">Your Orders</h1>
-        
-        {orders.length === 0 ? (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5 }}
-            className="bg-white shadow-md rounded-lg p-8 text-center"
-          >
-            <p className="text-xl text-gray-600">You haven't placed any orders yet.</p>
-            <Link href="/shop" className="mt-4 inline-block bg-blue-500 text-white px-6 py-2 rounded hover:bg-blue-600">
-              Start Shopping
-            </Link>
-          </motion.div>
-        ) : (
-          <div className="space-y-6">
-            {orders.map((order) => (
-              <motion.div
-                key={order.id}
-                whileHover={{ scale: 1.02 }}
-                className="bg-white shadow-md rounded-lg p-6"
-              >
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold text-gray-800">Order #{order.id}</h2>
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    order.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                    order.status === 'Processing' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {order.status}
-                  </span>
+    <div className="container mx-auto px-4 pt-32 pb-16">
+      <h1 className="text-3xl font-bold mb-8">Your Orders</h1>
+      
+      <div className="space-y-6">
+        {orders.map((order) => (
+          <Card key={order._id}>
+            <CardHeader>
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle>Order #{order._id}</CardTitle>
+                  <CardDescription>
+                    {order.createdAt ? 
+                      `Placed ${formatDistance(new Date(order.createdAt), new Date(), { addSuffix: true })}` : 
+                      'Recently placed'}
+                  </CardDescription>
                 </div>
-                <div className="grid grid-cols-3 gap-4 text-gray-600">
-                  <div>
-                    <p className="font-medium">Date</p>
-                    <p>{new Date(order.createdAt).toLocaleDateString()}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">Total</p>
-                    <p>${order.total.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium">Items</p>
-                    <p>{order.items.length}</p>
-                  </div>
+                <div className="text-right">
+                  <p className="font-semibold">Total: ₹{order.totalAmount?.toFixed(2) || '0.00'}</p>
+                  <p className="text-sm text-gray-500">Status: {order.status || 'Processing'}</p>
                 </div>
-                <Link href={`/orders/${order.id}`} className="mt-4 block text-blue-500 hover:underline">
-                  View Order Details
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </motion.div>
+              </div>
+            </CardHeader>
+            
+            <CardContent>
+              <div className="space-y-4">
+                {order.items?.map((item, index) => (
+                  <div key={item._id || index} className="flex items-center space-x-4">
+                    {item.productId && (
+                      <>
+                        <Image
+                          src={item.productId.images?.[0] || '/placeholder.jpg'}
+                          alt={item.productId.name || 'Product'}
+                          width={80}
+                          height={80}
+                          className="object-cover rounded"
+                        />
+                        <div className="flex-grow">
+                          <h3 className="font-semibold">{item.productId.name || 'Product'}</h3>
+                          <p className="text-sm text-gray-500">
+                            Quantity: {item.quantity || 1} × ₹{item.price?.toFixed(2) || '0.00'}
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {order.address && (
+                <div className="mt-6 pt-6 border-t">
+                  <h4 className="font-semibold mb-2">Shipping Address</h4>
+                  <p className="text-sm text-gray-600">
+                    {order.address.street || ''}<br />
+                    {order.address.city || ''}, {order.address.state || ''} {order.address.zip || ''}<br />
+                    {order.address.country || ''}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
