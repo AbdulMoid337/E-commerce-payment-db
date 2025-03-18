@@ -4,21 +4,24 @@ import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { CheckCircle2, ShoppingCart, Check, X, Star, MessageCircle, MessageSquareMore, ArrowLeft } from "lucide-react";
+import { CheckCircle2, ShoppingCart, Check, X, Star, MessageCircle, MessageSquareMore, ArrowLeft, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "@/context/cartcontext";
 import Loader from "@/components/Loader";
+import { useUser } from "@clerk/nextjs";
+
 // In your product detail page, update the review functionality
 
 
 // Update the component to include these functions
 export default function ProductDetailPage() {
+  const { isSignedIn, user } = useUser();
   const params = useParams();
   const router = useRouter();
-  const { addToCart } = useCart();
+  // Update the destructuring to include getQuantityInCart
+  const { addToCart, isInCart, getQuantityInCart } = useCart();
   const [product, setProduct] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeProducts, setActiveProducts] = useState(new Set());
   const [newReview, setNewReview] = useState({ rating: 0, comment: "" });
   const [reviews, setReviews] = useState([]);
   const [quantity, setQuantity] = useState(1);
@@ -53,35 +56,84 @@ export default function ProductDetailPage() {
       fetchProduct();
     }
   }, [params.id]);
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (product) {
-      addToCart({...product, quantity});
-      setActiveProducts(prev => new Set(prev).add(product._id));
-      toast.custom((t) => (
-        <div className="bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-4">
-          <CheckCircle2 className="w-6 h-6" />
-          <div>
-            <p className="font-semibold">{product.name} added to cart</p>
-            <p className="text-sm opacity-80">Your item is ready for checkout</p>
+      try {
+        const productIdToUse = product._id || product.id;
+        
+        console.log("Adding to cart - Product:", {
+          id: productIdToUse,
+          quantity: quantity,
+          name: product.name
+        });
+        
+        // If user is signed in, sync with database
+        if (isSignedIn) {
+          const response = await fetch('/api/users/cart', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              productId: productIdToUse,
+              quantity: quantity
+            }),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.warn('Failed to sync cart with database:', errorData.error);
+            // Continue with local cart update even if server sync fails
+          }
+        }
+        
+        // Update local cart (and localStorage via context)
+        addToCart({ ...product, quantity });
+        
+        // Show success toast
+        toast.custom((t) => (
+          <div className="bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-4">
+            <CheckCircle2 className="w-6 h-6" />
+            <div>
+              <p className="font-semibold">{product.name} added to cart</p>
+              <p className="text-sm opacity-80">Your item is ready for checkout</p>
+            </div>
+            <button 
+              onClick={() => toast.dismiss(t.id)}
+              className="ml-auto hover:bg-green-600 p-2 rounded-full"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <button 
-            onClick={() => toast.dismiss(t.id)}
-            className="ml-auto hover:bg-green-600 p-2 rounded-full"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      ), { 
-        duration: 3000,
-        position: 'top-right'
-      });
+        ), { 
+          duration: 3000,
+          position: 'top-right'
+        });
+        
+        setQuantity(1);
+      } catch (error) {
+        console.error('Error adding to cart:', error);
+        toast.error(error.message || 'Failed to add item to cart');
+      }
     }
   };
 
   const handleQuantityChange = (e) => {
     const value = parseInt(e.target.value);
-    if (value > 0) {
+    if (value > 0 && value <= (product?.stock || 100)) {
       setQuantity(value);
+    }
+  };
+  
+  const incrementQuantity = () => {
+    if (quantity < (product?.stock || 100)) {
+      setQuantity(prev => prev + 1);
+    }
+  };
+  
+  const decrementQuantity = () => {
+    if (quantity > 1) {
+      setQuantity(prev => prev - 1);
     }
   };
 
@@ -220,6 +272,7 @@ export default function ProductDetailPage() {
             </span>
           </div>
 
+       
           <motion.button
             onClick={handleAddToCart}
             whileHover={{ scale: 1.05 }}
@@ -227,16 +280,16 @@ export default function ProductDetailPage() {
             className={`
               w-auto px-4 h-10 flex items-center justify-center 
               font-semibold rounded-xl text-sm transition-all duration-300
-              ${activeProducts.has(product._id)
+              ${product && isInCart(product._id || product.id)
                 ? 'bg-green-500 text-white' 
                 : 'bg-black text-white hover:bg-gray-800'}
             `}
-            disabled={activeProducts.has(product._id) || product.stock <= 0}
+            disabled={!product || product.stock <= 0}
           >
-            {activeProducts.has(product._id) ? (
+            {product && isInCart(product._id || product.id) ? (
               <div className="flex items-center space-x-1">
                 <Check className="w-4 h-4" />
-                <span>Added</span>
+                <span>Added to cart</span>
               </div>
             ) : (
               <div className="flex items-center space-x-1">

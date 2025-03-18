@@ -30,16 +30,39 @@ export async function GET(request) {
       return NextResponse.json([]);
     }
 
-    // Find all orders for the user
+    // Find all orders for the user with improved population
     const orders = await Order.find({ user: user._id })
       .populate({
         path: 'items.productId',
-        select: 'name price images'
+        select: 'name price images description'
       })
+      .populate('user', 'name email')
       .sort({ createdAt: -1 });
 
     console.log("API - User orders count:", orders.length);
-    return NextResponse.json(orders);
+    
+    // Transform orders to ensure all necessary data is included
+    const transformedOrders = orders.map(order => {
+      return {
+        _id: order._id,
+        user: order.user,
+        items: order.items.map(item => ({
+          productId: item.productId,
+          quantity: item.quantity,
+          price: item.price
+        })),
+        totalAmount: order.totalAmount,
+        status: order.status || 'pending',
+        paymentStatus: order.paymentStatus || 'pending',
+        paymentMethod: order.paymentMethod,
+        address: order.address,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        stripeSessionId: order.stripeSessionId
+      };
+    });
+    
+    return NextResponse.json(transformedOrders);
   } catch (error) {
     console.error('Error fetching orders:', error);
     return NextResponse.json(

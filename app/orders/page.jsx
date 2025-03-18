@@ -67,10 +67,10 @@ export default function OrdersPage() {
 
   if (!orders.length) {
     return (
-      <div className="container mx-auto px-4 pt-32 pb-16 text-center">
+      <div className="container mx-auto px-4 pt-56 pb-52 text-center">
         <h1 className="text-3xl font-bold mb-4">No Orders Found</h1>
         <p className="text-gray-600 mb-8">You haven't placed any orders yet.</p>
-        <Link href="/products">
+        <Link href="/shop">
           <Button>Start Shopping</Button>
         </Link>
       </div>

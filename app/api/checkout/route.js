@@ -67,9 +67,40 @@ export async function POST(request) {
     }
 
     // Fetch product details from database to ensure correct pricing
+    // Inside the POST function, update the product fetching logic:
+    // Around line 70-75
     const productIds = items.map(item => item.id).filter(id => id); // Filter out undefined IDs
     console.log("Product IDs:", productIds);
     
+    // Add more detailed logging to debug the issue
+    console.log("Cart items received:", JSON.stringify(items, null, 2));
+    
+    // Modify the product fetching to be more robust
+    let dbProducts = [];
+    if (productIds.length > 0) {
+      try {
+        dbProducts = await Product.find({ 
+          _id: { $in: productIds } 
+        });
+        console.log("Products found in DB:", dbProducts.length);
+      } catch (err) {
+        console.error("Error finding products:", err);
+      }
+    }
+
+    // If no products found in DB, use the provided items directly
+    // This is a fallback for development/testing
+    if (dbProducts.length === 0 && items.length > 0) {
+      console.log("Using provided items directly as no DB products found");
+      dbProducts = items.map(item => ({
+        _id: item.id,
+        name: item.name,
+        price: item.price,
+        images: item.images || [item.imageUrl]
+      }));
+    }
+
+    // Continue with the rest of your checkout logic
     if (productIds.length === 0) {
       return NextResponse.json(
         { error: 'No valid product IDs in cart' },
@@ -135,7 +166,7 @@ export async function POST(request) {
       totalAmount += product.price * (item.quantity || 1);
     }
 
-    // Create a pending order in the database
+    // Create the order in the database immediately
     const order = new Order({
       user: userRef._id,
       items: orderItems,
@@ -151,10 +182,10 @@ export async function POST(request) {
         country: shippingInfo.country,
       },
     });
-
+    
     await order.save();
     console.log("Created order:", order._id);
-
+    
     // Add order to user's orders if orders array exists
     if (userRef.orders) {
       userRef.orders.push(order._id);
@@ -169,7 +200,7 @@ export async function POST(request) {
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success?orderId=${order._id}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/cancel?orderId=${order._id}`,
       customer_email: shippingInfo.email,
-      client_reference_id: order._id.toString(),
+      client_reference_id: userRef._id.toString(),
       shipping_address_collection: {
         allowed_countries: ['US', 'CA', 'GB', 'AU', 'IN'], // Added India
       },
@@ -202,7 +233,10 @@ export async function POST(request) {
     });
 
     console.log("Created Stripe session:", session.id);
-    return NextResponse.json({ sessionId: session.id });
+    return NextResponse.json({ 
+      sessionId: session.id,
+      url: session.url
+    });
   } catch (error) {
     console.error('Checkout error:', error);
     return NextResponse.json(

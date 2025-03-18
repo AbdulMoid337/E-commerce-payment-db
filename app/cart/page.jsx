@@ -26,33 +26,35 @@ export default function CartPage() {
     cart, 
     removeFromCart, 
     updateQuantity, 
-    calculateTotal, 
+    calculateTotal,
     clearCart 
   } = useCart();
   
-  const [isCheckingOut, setIsCheckingOut] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [shippingInfo, setShippingInfo] = useState({
     name: '',
     email: '',
-    phone: '',
-    street: '',
+    address: '',
     city: '',
-    state: '',
-    zip: '',
-    country: '',
+    postalCode: '',
+    country: ''
   });
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setShippingInfo(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const handleRemoveFromCart = (item) => {
-    removeFromCart(item.id);
+    // Extract the product ID correctly, handling all possible formats
+    const productId = item.productId?._id || item.productId || item._id || item.id;
+    
+    console.log("Removing item with ID:", productId, "Item data:", JSON.stringify(item));
+    
+    if (!productId) {
+      console.error("Cannot remove item: Unable to determine product ID", item);
+      toast.error("Unable to remove item from cart");
+      return;
+    }
+    
+    // Remove from local storage (via context)
+    removeFromCart(productId);
     
     // Show toast notification
     toast.custom((t) => (
@@ -75,302 +77,250 @@ export default function CartPage() {
     });
   };
 
-  const handleCheckout = async () => {
-    // Validate form
-    const requiredFields = ['name', 'email', 'phone', 'street', 'city', 'state', 'zip', 'country'];
-    const missingFields = requiredFields.filter(field => !shippingInfo[field]);
-    
-    if (missingFields.length > 0) {
-      toast.error(`Please fill in all required fields: ${missingFields.join(', ')}`);
-      return;
-    }
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setShippingInfo(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
+  const handleCheckout = async () => {
     try {
-      setIsLoading(true);
+      setIsCheckingOut(true);
       
-      // Filter out items with invalid IDs
-      const validItems = cart.filter(item => item.id);
-      
-      if (validItems.length === 0) {
-        toast.error("No valid items in cart");
+      // Validate cart
+      if (!cart || cart.length === 0) {
+        toast.error("Your cart is empty");
+        setIsCheckingOut(false);
         return;
       }
       
-      // Create order in your database and get checkout session
+      // Prepare items for checkout
+      const items = cart.map(item => ({
+        id: item._id || item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity || 1,
+        image: item.imageUrl || item.images?.[0] || ""
+      }));
+      
+      // Call checkout API
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          items: validItems.map(item => ({
-            id: item.id,
-            quantity: item.quantity || 1,
-            price: item.price,
-            name: item.name,
-            image: item.images?.[0] || item.imageUrl
-          })),
+          items,
           shippingInfo
         }),
       });
-
+      
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Something went wrong');
+        throw new Error(errorData.error || 'Checkout failed');
       }
-
-      const { sessionId } = await response.json();
       
-      // Redirect to Stripe Checkout
-      const stripe = await stripePromise;
-      const { error } = await stripe.redirectToCheckout({ sessionId });
+      const data = await response.json();
       
-      if (error) {
-        toast.error(error.message);
+      // Redirect to Stripe checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL returned');
       }
+      
     } catch (error) {
-      console.error('Error during checkout:', error);
-      toast.error(error.message || 'Something went wrong. Please try again.');
+      console.error('Checkout error:', error);
+      toast.error(error.message || 'Failed to process checkout');
     } finally {
-      setIsLoading(false);
+      setIsCheckingOut(false);
     }
   };
 
-  if (cart.length === 0) {
-    return (
-      <div className="container mx-auto pt-48 px-4 pb-32 text-center">
-        <h1 className="text-3xl font-bold mb-4">Your Cart is Empty</h1>
-        <p className="text-gray-600 mb-6">
-          Looks like you haven't added any items to your cart yet.
-        </p>
-        <Link href="/" className="text-blue-600 hover:underline">
-          Continue Shopping
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto px-4 pt-32 pb-8">
-      <h1 className="text-3xl font-bold mb-6">Your Cart</h1>
+    <div className="container mx-auto px-4 pt-32 pb-16">
+      <h1 className="text-3xl font-bold mb-8">Your Cart</h1>
       
-      <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
-        {/* Cart Items */}
-        <div className="space-y-4">
-          {!isCheckingOut ? (
-            cart.map((item) => (
-              <div 
-                key={item._id || item.id} 
-                className="flex items-center border-b pb-4 space-x-4"
-              >
-                <Image
-                  src={item.images?.[0] || item.imageUrl || '/placeholder.jpg'}
-                  alt={`Product image of ${item.name}`}
-                  width={100}
-                  height={100}
-                  className="object-contain"
-                />
-                
-                <div className="flex-grow">
-                  <h2 className="text-xl font-semibold">{item.name}</h2>
-                  <p className="text-gray-600">₹{item.price.toFixed(2)}</p>
-                </div>
-                
-                <div className="flex items-center space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => updateQuantity(item.id, Math.max(1, (item.quantity || 1) - 1))}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </Button>
+      <div className="grid md:grid-cols-3 gap-8">
+        <div className="md:col-span-2">
+          {cart.length > 0 ? (
+            <div className="space-y-4">
+              {cart.map((item) => (
+                <div key={item._id || item.id} className="flex flex-col sm:flex-row border-b pb-4">
+                  <div className="flex-shrink-0 w-full sm:w-24 h-24 mb-4 sm:mb-0 relative">
+                    {item.imageUrl || item.images?.[0] ? (
+                      <img
+                        src={item.imageUrl || item.images[0]}
+                        alt={item.name}
+                        className="w-full h-full object-cover rounded-md"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '/placeholder-image.jpg';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-200 rounded-md flex items-center justify-center">
+                        <span className="text-gray-500">No image</span>
+                      </div>
+                    )}
+                  </div>
                   
-                  <span className="px-2">{item.quantity || 1}</span>
+                  <div className="flex-grow px-4">
+                    <h3 className="font-medium">{item.name}</h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {item.description || "No description available"}
+                    </p>
+                    <div className="flex items-center mt-2">
+                      <button 
+                        onClick={() => updateQuantity(item._id || item.id, Math.max(1, item.quantity - 1))}
+                        className="p-1 rounded-full hover:bg-gray-100"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="mx-2 w-8 text-center">{item.quantity}</span>
+                      <button 
+                        onClick={() => updateQuantity(item._id || item.id, item.quantity + 1)}
+                        className="p-1 rounded-full hover:bg-gray-100"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                   
-                  <Button 
-                    variant="outline" 
-                    size="icon"
-                    onClick={() => updateQuantity(item.id, (item.quantity || 1) + 1)}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
+                  <div className="flex flex-col items-end justify-between">
+                    <span className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
+                    <button 
+                      onClick={() => handleRemoveFromCart(item)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
-                
-                <Button 
-                  variant="destructive" 
-                  size="icon"
-                  onClick={() => handleRemoveFromCart(item)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>Shipping Information</CardTitle>
-                <CardDescription>Enter your shipping details to complete your order</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input 
-                      id="name" 
-                      name="name" 
-                      value={shippingInfo.name} 
-                      onChange={handleInputChange} 
-                      required 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
-                      name="email" 
-                      type="email" 
-                      value={shippingInfo.email} 
-                      onChange={handleInputChange} 
-                      required 
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
-                  <Input 
-                    id="phone" 
-                    name="phone" 
-                    value={shippingInfo.phone} 
-                    onChange={handleInputChange} 
-                    required 
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="street">Street Address</Label>
-                  <Input 
-                    id="street" 
-                    name="street" 
-                    value={shippingInfo.street} 
-                    onChange={handleInputChange} 
-                    required 
-                  />
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="city">City</Label>
-                    <Input 
-                      id="city" 
-                      name="city" 
-                      value={shippingInfo.city} 
-                      onChange={handleInputChange} 
-                      required 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="state">State/Province</Label>
-                    <Input 
-                      id="state" 
-                      name="state" 
-                      value={shippingInfo.state} 
-                      onChange={handleInputChange} 
-                      required 
-                    />
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="zip">Postal/ZIP Code</Label>
-                    <Input 
-                      id="zip" 
-                      name="zip" 
-                      value={shippingInfo.zip} 
-                      onChange={handleInputChange} 
-                      required 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="country">Country</Label>
-                    <Input 
-                      id="country" 
-                      name="country" 
-                      value={shippingInfo.country} 
-                      onChange={handleInputChange} 
-                      required 
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="text-center py-12">
+              <div className="w-24 h-24 mx-auto mb-6 text-gray-300">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-medium mb-2">Your cart is empty</h3>
+              <p className="text-gray-500 mb-6">Looks like you haven't added anything to your cart yet.</p>
+              <Link href="/shop">
+                <Button>Start Shopping</Button>
+              </Link>
+            </div>
           )}
         </div>
         
-        {/* Order Summary */}
-        <div className="bg-gray-100 p-6 rounded-lg">
-          <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
-          
-          <div className="space-y-4">
-            <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>₹{calculateTotal().toFixed(2)}</span>
-            </div>
-            
-            <div className="flex justify-between">
-              <span>Shipping</span>
-              <span>Free</span>
-            </div>
-            
-            <div className="border-t pt-4 flex justify-between font-bold">
-              <span>Total</span>
-              <span>₹{calculateTotal().toFixed(2)}</span>
-            </div>
-          </div>
-          
-          <div className="mt-6 space-y-4">
-            {!isCheckingOut ? (
-              <Button 
-                className="w-full bg-green-600 hover:bg-green-700"
-                onClick={() => setIsCheckingOut(true)}
-              >
-                Proceed to Checkout
-              </Button>
-            ) : (
-              <Button 
-                className="w-full bg-green-600 hover:bg-green-700"
-                onClick={handleCheckout}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Processing...' : 'Pay with Stripe'}
-              </Button>
-            )}
-            
-            {isCheckingOut && (
-              <Button 
-                variant="outline" 
-                className="w-full"
-                onClick={() => setIsCheckingOut(false)}
-                disabled={isLoading}
-              >
-                Back to Cart
-              </Button>
-            )}
-            
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={clearCart}
-              disabled={isLoading}
-            >
-              Clear Cart
-            </Button>
-            
-            <Link href="/products" className="block text-center text-blue-600 hover:underline">
-              Continue Shopping
-            </Link>
-          </div>
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Order Summary</CardTitle>
+              <CardDescription>Review your order before checkout</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>₹{calculateTotal().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span>Free</span>
+                </div>
+                <div className="border-t pt-4 flex justify-between font-bold">
+                  <span>Total</span>
+                  <span>₹{calculateTotal().toFixed(2)}</span>
+                </div>
+                
+                {cart.length > 0 && (
+                  <>
+                    <div className="border-t pt-4 mt-4">
+                      <h3 className="font-medium mb-2">Shipping Information</h3>
+                      <div className="space-y-3">
+                        <div>
+                          <Label htmlFor="name">Full Name</Label>
+                          <Input 
+                            id="name" 
+                            name="name" 
+                            value={shippingInfo.name} 
+                            onChange={handleInputChange} 
+                            placeholder="John Doe"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="email">Email</Label>
+                          <Input 
+                            id="email" 
+                            name="email" 
+                            type="email" 
+                            value={shippingInfo.email} 
+                            onChange={handleInputChange} 
+                            placeholder="john@example.com"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="address">Address</Label>
+                          <Input 
+                            id="address" 
+                            name="address" 
+                            value={shippingInfo.address} 
+                            onChange={handleInputChange} 
+                            placeholder="123 Main St"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label htmlFor="city">City</Label>
+                            <Input 
+                              id="city" 
+                              name="city" 
+                              value={shippingInfo.city} 
+                              onChange={handleInputChange} 
+                              placeholder="New York"
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="postalCode">Postal Code</Label>
+                            <Input 
+                              id="postalCode" 
+                              name="postalCode" 
+                              value={shippingInfo.postalCode} 
+                              onChange={handleInputChange} 
+                              placeholder="10001"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label htmlFor="country">Country</Label>
+                          <Input 
+                            id="country" 
+                            name="country" 
+                            value={shippingInfo.country} 
+                            onChange={handleInputChange} 
+                            placeholder="United States"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      className="w-full" 
+                      onClick={handleCheckout}
+                      disabled={isCheckingOut || cart.length === 0}
+                    >
+                      {isCheckingOut ? 'Processing...' : 'Proceed to Checkout'}
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

@@ -40,6 +40,10 @@ const OrderSchema = new mongoose.Schema(
       zip: String,
       country: String,
     },
+    stripeSessionId: {
+      type: String,
+      index: true, // Add an index for faster lookups
+    },
   },
   { timestamps: true }
 );

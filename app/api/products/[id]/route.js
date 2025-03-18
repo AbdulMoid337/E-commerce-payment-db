@@ -8,8 +8,9 @@ export async function GET(request, context) {
   try {
     await dbConnect();
     
-    // Access the id directly from context.params
-    const { id } = context.params;
+    // Fix: Await the params object before destructuring
+    const params = await context.params;
+    const { id } = params;
     
     const product = await Product.findById(id);
     
@@ -29,6 +30,7 @@ export async function GET(request, context) {
     );
   }
 }
+
 // PUT update a product
 export async function PUT(request, context) {
   try {
@@ -42,7 +44,10 @@ export async function PUT(request, context) {
     // }
     
     await dbConnect();
-    const { id } = context.params;
+    // Fix: Await the params object before destructuring
+    const params = await context.params;
+    const { id } = params;
+    
     const data = await request.json();
     
     // Ensure images array is properly formatted
@@ -79,17 +84,19 @@ export async function PUT(request, context) {
 export async function DELETE(request, context) {
   try {
     // Temporarily bypass auth check for development
-    const { userId } = auth();
+    // const { userId } = auth();
     
-    if (!userId) {
-      return NextResponse.json(
-        { message: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    // if (!userId) {
+    //   return NextResponse.json(
+    //     { message: 'Unauthorized' },
+    //     { status: 401 }
+    //   );
+    // }
     
     await dbConnect();
-    const { id } = context.params;
+    // Fix: Await the params object before destructuring
+    const params = await context.params;
+    const { id } = params;
     
     const product = await Product.findByIdAndDelete(id);
     

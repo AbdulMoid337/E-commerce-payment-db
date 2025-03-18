@@ -11,7 +11,8 @@ import Loader from '@/components/Loader';
 
 export default function ShopPage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const { addToCart } = useCart();
+  const { addToCart, isInCart, getQuantityInCart } = useCart();
+  // Remove activeProducts state since we're using context now
   const [activeProducts, setActiveProducts] = useState(new Set());
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const [products, setProducts] = useState([]);
@@ -68,31 +69,34 @@ export default function ShopPage() {
     // Prevent link navigation
     event.preventDefault();
     
-    // Add to cart
-    addToCart(product);
-
-    // Add product to active products
-    setActiveProducts(prev => new Set(prev).add(product._id || product.id));
-
-    // Show toast notification
-    toast.custom((t) => (
-      <div className="bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-4">
-        <CheckCircle2 className="w-6 h-6" />
-        <div>
-          <p className="font-semibold">{product.name} added to cart</p>
-          <p className="text-sm opacity-80">Your item is ready for checkout</p>
+    // Make sure we have complete product data
+    if (product) {
+      // Add to cart (which will update localStorage via context)
+      addToCart({
+        ...product,
+        quantity: 1
+      });
+      
+      // Show toast notification
+      toast.custom((t) => (
+        <div className="bg-green-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center space-x-4">
+          <CheckCircle2 className="w-6 h-6" />
+          <div>
+            <p className="font-semibold">{product.name} added to cart</p>
+            <p className="text-sm opacity-80">Your item is ready for checkout</p>
+          </div>
+          <button 
+            onClick={() => toast.dismiss(t.id)}
+            className="ml-auto hover:bg-green-600 p-2 rounded-full"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
-        <button 
-          onClick={() => toast.dismiss(t.id)}
-          className="ml-auto hover:bg-green-600 p-2 rounded-full"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-    ), { 
-      duration: 3000,
-      position: 'top-right'
-    });
+      ), { 
+        duration: 3000,
+        position: 'top-right'
+      });
+    }
   };
 
   if (isLoading) return <Loader />;
